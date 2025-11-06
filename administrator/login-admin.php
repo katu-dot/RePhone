@@ -1,13 +1,26 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理者 ログイン</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RePhone_staff ログイン</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <img src="./img/admin-logo.png" alt="Rehone Admin Logo">
-    <h1>ログイン</h1>
+  <div class="login-container">
+    <img src="./img/admin-logo.png" alt="">
 
+    <h2>ログイン</h2>
+
+    <form action="login.php" method="post" class="login-form">
+      <label for="admin_id">管理者ID</label>
+      <input type="text" id="admin_id" name="admin_id" required>
+
+      <label for="password">パスワード</label>
+      <input type="password" id="password" name="password" required>
+
+      <button type="submit">ログイン</button>
+    </form>
+  </div>
 </body>
 </html>
