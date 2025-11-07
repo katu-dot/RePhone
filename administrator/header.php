@@ -11,7 +11,7 @@
         <div class="container">
             <div class="navbar-brand">
                 <a class="navbar-item" href="index.html">
-                    <img src="../images/RePhone_logo.png" alt="RePhone ロゴ" style="max-height: 35px;">
+                    <img src="../img/admin-logo.png" alt="RePhone ロゴ" style="max-height: 35px;">
                 </a>
 
                 <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navbarMenu">
@@ -37,13 +37,4 @@
             </div>
         </div>
     </nav>
-    <section class="section">
-        <div class="container">
-            <h1 class="title">
-                サイトのメインコンテンツ
-            </h1>
-            <p class="subtitle">
-                Bulmaを使ってヘッダーが正しく表示されました。
-            </p>
-        </div>
-    </section>
+    

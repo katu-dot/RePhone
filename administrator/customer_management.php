@@ -1,105 +1,98 @@
 <?php
-require 'header.php'; // ヘッダー呼び出し
+require '../config/db-connect.php';
+require 'header.php';
 
-// ▼ データベース接続（例：MySQLの場合）
 try {
-    $pdo = new PDO('mysql:host=mysql326.phy.lolipop.lan;dbname=LAA1607576-rephone;charset=utf8',
-    'LAA1607576',
-    'te621128');
+    $pdo = new PDO($connect, USER, PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    // 検索キーワードを取得
+    $keyword = $_POST['keyword'] ?? '';
+
+    // SQLを動的に変更
+    if ($keyword !== '') {
+        $sql = "SELECT * FROM customer_management 
+                WHERE name LIKE :keyword 
+                OR email LIKE :keyword 
+                OR phone LIKE :keyword 
+                OR address LIKE :keyword
+                ORDER BY registration_date DESC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->bindValue(':keyword', '%' . $keyword . '%', PDO::PARAM_STR);
+        $stmt->execute();
+    } else {
+        $sql = "SELECT * FROM customer_management ORDER BY registration_date DESC";
+        $stmt = $pdo->query($sql);
+    }
 } catch (PDOException $e) {
-    echo 'DB接続エラー: ' . $e->getMessage();
+    echo '<div class="notification is-danger">接続エラー: ' . htmlspecialchars($e->getMessage()) . '</div>';
     exit;
 }
-
-// ▼ 検索キーワード取得
-$keyword = isset($_GET['keyword']) ? trim($_GET['keyword']) : '';
-
-// ▼ データ取得処理
-if ($keyword !== '') {
-    $sql = "SELECT register_date, customer_name, customer_number FROM customers
-            WHERE customer_name LIKE :keyword OR customer_number LIKE :keyword";
-    $stmt = $pdo->prepare($sql);
-    $stmt->bindValue(':keyword', '%' . $keyword . '%', PDO::PARAM_STR);
-    $stmt->execute();
-} else {
-    $sql = "SELECT register_date, customer_name, customer_number FROM customers ORDER BY register_date DESC";
-    $stmt = $pdo->query($sql);
-}
-$customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
-<section class="section" style="background-color: #f5f5f5; min-height: 100vh;">
-  <div class="columns is-gapless">
-    <!-- サイドメニュー -->
-    <div class="column is-narrow" style="width: 220px; background-color: #fff; border-right: 1px solid #ccc;">
-      <aside class="menu p-4">
-        <p class="menu-label">メニュー</p>
-        <ul class="menu-list">
-          <li><a href="#">ホーム</a></li>
-          <li><a href="#">商品管理</a></li>
-          <li>
-            <a class="is-active">顧客管理</a>
-            <ul>
-              <li><a href="#">顧客マスター</a></li>
-            </ul>
-          </li>
-          <li><a href="#">注文管理</a></li>
-          <li><a href="#">業務管理</a></li>
-        </ul>
-      </aside>
-    </div>
+<div class="columns">
 
-    <!-- メインエリア -->
-    <div class="column" style="padding: 2rem;">
-      <div class="box">
-        <h1 class="title is-5">
-          顧客管理 / 顧客マスター<?= $keyword ? ' / 顧客マスター検索結果' : '' ?>
-        </h1>
+  <!-- 右メインコンテンツ -->
+  <div class="column" style="padding: 2rem;">
+  <div class="container mt-5">
+    <h1 class="title is-4">顧客管理／顧客マスター</h1>
+    <h2 class="subtitle is-6">顧客一覧</h2>
 
-        <form method="get" action="customer_master.php" class="mb-4">
-          <div class="field has-addons">
+    <!-- 検索フォーム -->
+    <form action="customer-management.php" method="post" class="mb-5">
+        <div class="field has-addons">
             <div class="control is-expanded">
-              <input class="input" type="text" name="keyword" placeholder="キーワード検索" value="<?= htmlspecialchars($keyword) ?>">
+                <input class="input" type="text" name="keyword" placeholder="顧客検索（氏名・メール・電話・住所）" value="<?= htmlspecialchars($keyword) ?>">
             </div>
             <div class="control">
-              <button class="button is-info" type="submit">検索</button>
+                <button class="button is-link" type="submit">検索</button>
             </div>
-          </div>
-        </form>
-
-        <?php if ($keyword !== ''): ?>
-          <p>「<?= htmlspecialchars($keyword) ?>」の検索結果を表示しました。</p>
-          <hr>
-        <?php endif; ?>
-
-        <table class="table is-fullwidth is-striped is-hoverable">
-          <thead>
-            <tr>
-              <th>会員登録日</th>
-              <th>顧客名</th>
-              <th>顧客番号</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php if (count($customers) > 0): ?>
-              <?php foreach ($customers as $c): ?>
-                <tr>
-                  <td><?= htmlspecialchars($c['register_date']) ?></td>
-                  <td><?= htmlspecialchars($c['customer_name']) ?></td>
-                  <td><?= htmlspecialchars($c['customer_number']) ?></td>
-                  <td><a href="customer_detail.php?id=<?= urlencode($c['customer_number']) ?>" class="button is-small is-link">詳細</a></td>
-                </tr>
-              <?php endforeach; ?>
-            <?php else: ?>
-              <tr><td colspan="4">該当する顧客は見つかりませんでした。</td></tr>
+            <?php if ($keyword !== ''): ?>
+                <div class="control">
+                    <a href="customer-list.php" class="button is-light">クリア</a>
+                </div>
             <?php endif; ?>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</section>
+        </div>
+    </form>
 
+    <!-- 検索結果表示 -->
+    <?php if ($keyword !== ''): ?>
+        <p class="has-text-grey mb-3">
+            検索キーワード：「<?= htmlspecialchars($keyword) ?>」
+        </p>
+    <?php endif; ?>
+
+    <?php if ($stmt->rowCount() === 0): ?>
+        <div class="notification is-warning">
+            該当する顧客情報が見つかりませんでした。
+        </div>
+    <?php else: ?>
+        <table class="table is-striped is-fullwidth">
+            <thead>
+                <tr>
+                    <th>会員登録日</th>
+                    <th>氏名</th>
+                    <th>メールアドレス</th>
+                    <th>電話番号</th>
+                    <th>住所</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($stmt as $row): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($row['registration_date']) ?></td>
+                        <td><?= htmlspecialchars($row['name']) ?></td>
+                        <td><?= htmlspecialchars($row['email']) ?></td>
+                        <td><?= htmlspecialchars($row['phone']) ?></td>
+                        <td><?= htmlspecialchars($row['address']) ?></td>
+                        <td><a href="customer-detail.php?id=<?= $row['customer_management_id'] ?>" class="button is-small is-info">詳細</a></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
+</div>
+  </div>
+</div>
 <?php require 'footer.php'; ?>
