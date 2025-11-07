@@ -1,0 +1,76 @@
+/* 画面全体の基本設定 */
+body {
+  font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  background-color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+/* ログインボックス全体 */
+.login-container {
+  text-align: center;
+  width: 380px;
+}
+
+/* ロゴ画像 */
+.login-container img {
+  width: 280px;
+  margin-bottom: 10px;
+}
+
+/* タイトル「ログイン」 */
+h2 {
+  font-size: 24px;
+  margin: 10px 0 30px;
+  font-weight: bold;
+}
+
+/* フォーム全体 */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* ラベル部分（管理者ID・パスワード） */
+.login-form label {
+  font-weight: bold;
+  margin-bottom: 5px;
+  margin-left: 8px;
+}
+
+/* テキストボックス */
+.login-form input[type="text"],
+.login-form input[type="password"] {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  background-color: #ddd;
+  font-size: 16px;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+}
+
+/* ログインボタン */
+button {
+  background-color: #a6a6d6;
+  color: #fff;
+  border: none;
+  padding: 8px 0;
+  width: 150px;              /* ← ボタン幅を小さく */
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 15px;
+  transition: 0.3s;
+  display: block;            /* ← 中央寄せのためにブロック化 */
+  margin: 10px auto 0;       /* ← 左右中央に配置 */
+}
+
+button:hover {
+  background-color: #8f8fc7;
+}
