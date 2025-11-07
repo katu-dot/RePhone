@@ -37,13 +37,4 @@
             </div>
         </div>
     </nav>
-    <section class="section">
-        <div class="container">
-            <h1 class="title">
-                サイトのメインコンテンツ
-            </h1>
-            <p class="subtitle">
-                Bulmaを使ってヘッダーが正しく表示されました。
-            </p>
-        </div>
-    </section>
+    
