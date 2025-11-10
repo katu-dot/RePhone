@@ -71,74 +71,80 @@ try {
 }
 ?>
 
-<div class="main-content">
-    <h2 class="title is-4">注文管理/注文マスター/注文マスター詳細</h2>
-    <hr>
-    <h3 class="subtitle is-5">注文詳細:</h3>
+<div class="columns">
+    
+    <?php require '../config/left-menu.php'; ?>
 
-    <div class="columns">
-        
-        <div class="column is-one-third">
-            <div class="card">
-                <div class="card-image">
-                    <figure class="image is-4by3">
-                        <img src="../<?php echo htmlspecialchars($order['product_image'] ?? 'img/default.jpg'); ?>" alt="<?php echo htmlspecialchars($order['product_name']); ?>">
-                    </figure>
-                </div>
-                <div class="card-content">
-                    <p class="title is-5"><?php echo htmlspecialchars($order['product_name']); ?></p>
-                    <p class="subtitle is-6 has-text-danger">¥<?php echo number_format($order['price']); ?> 円</p>
+    <div class="column" style="padding: 2rem;">
+
+        <h2 class="title is-4">注文管理/注文マスター/注文マスター詳細</h2>
+        <hr>
+        <h3 class="subtitle is-5">注文詳細:</h3>
+
+        <div class="columns">
+            
+            <div class="column is-one-third">
+                <div class="card">
+                    <div class="card-image">
+                        <figure class="image is-4by3">
+                            <img src="../<?php echo htmlspecialchars($order['product_image'] ?? 'img/default.jpg'); ?>" alt="<?php echo htmlspecialchars($order['product_name']); ?>">
+                        </figure>
+                    </div>
+                    <div class="card-content">
+                        <p class="title is-5"><?php echo htmlspecialchars($order['product_name']); ?></p>
+                        <p class="subtitle is-6 has-text-danger">¥<?php echo number_format($order['price']); ?> 円</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="column is-two-thirds">
-            <table class="table is-fullwidth is-striped">
-                <tbody>
-                    <tr>
-                        <th>注文日</th>
-                        <td><?php echo date('Y/m/d', strtotime($order['order_date'])); ?></td>
-                    </tr>
-                    <tr>
-                        <th>顧客名</th>
-                        <td><?php echo htmlspecialchars($order['customer_name']); ?>様</td>
-                    </tr>
-                    <tr>
-                        <th>顧客番号</th>
-                        <td><?php echo htmlspecialchars($order['customer_management_id']); ?></td>
-                    </tr>
-                    <tr>
-                        <th>電話番号</th>
-                        <td><?php echo htmlspecialchars($order['customer_phone']); ?></td>
-                    </tr>
-                    <tr>
-                        <th>住所</th>
-                        <td><?php echo htmlspecialchars($order['customer_address']); ?></td>
-                    </tr>
-                    <tr>
-                        <th>郵便番号</th>
-                        <td class="has-text-grey-light">(DBに項目なし)</td>
-                    </tr>
-                    <tr>
-                        <th>配達希望日</th>
-                        <td class="has-text-grey-light">(DBに項目なし)</td>
-                    </tr>
-                    <tr>
-                        <th>配達希望時間</th>
-                        <td class="has-text-grey-light">(DBに項目なし)</td>
-                    </tr>
-                    <tr>
-                        <th>入金状況</th>
-                        <td>
-                            <span class="tag <?php echo ($order['payment_confirmation'] === '入金済み') ? 'is-success' : 'is-danger'; ?>">
-                                <?php echo htmlspecialchars($order['payment_confirmation']); ?>
-                            </span>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="column is-two-thirds">
+                <table class="table is-fullwidth is-striped">
+                    <tbody>
+                        <tr>
+                            <th>注文日</th>
+                            <td><?php echo date('Y/m/d', strtotime($order['order_date'])); ?></td>
+                        </tr>
+                        <tr>
+                            <th>顧客名</th>
+                            <td><?php echo htmlspecialchars($order['customer_name']); ?>様</td>
+                        </tr>
+                        <tr>
+                            <th>顧客番号</th>
+                            <td><?php echo htmlspecialchars($order['customer_management_id']); ?></td>
+                        </tr>
+                        <tr>
+                            <th>電話番号</th>
+                            <td><?php echo htmlspecialchars($order['customer_phone']); ?></td>
+                        </tr>
+                        <tr>
+                            <th>住所</th>
+                            <td><?php echo htmlspecialchars($order['customer_address']); ?></td>
+                        </tr>
+                        <tr>
+                            <th>郵便番号</th>
+                            <td class="has-text-grey-light">(DBに項目なし)</td>
+                        </tr>
+                        <tr>
+                            <th>配達希望日</th>
+                            <td class="has-text-grey-light">(DBに項目なし)</td>
+                        </tr>
+                        <tr>
+                            <th>配達希望時間</th>
+                            <td class="has-text-grey-light">(DBに項目なし)</td>
+                        </tr>
+                        <tr>
+                            <th>入金状況</th>
+                            <td>
+                                <span class="tag <?php echo ($order['payment_confirmation'] === '入金済み') ? 'is-success' : 'is-danger'; ?>">
+                                    <?php echo htmlspecialchars($order['payment_confirmation']); ?>
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
         </div>
-        
     </div>
 </div>
 
