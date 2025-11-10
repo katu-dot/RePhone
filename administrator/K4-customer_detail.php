@@ -1,4 +1,6 @@
 <?php
+//作者：勝原優太郎
+
 require '../config/db-connect.php';
 require 'header.php';
 
