@@ -143,7 +143,7 @@ try {
                             <div class="column is-one-third">
                                 <div class="card">
                                     <div class="card-content">
-                                        <a href="order_detail.php?id=<?php echo htmlspecialchars($order['order_management_id']); ?>">
+                                        <a href="K6-order_detail.php?id=<?php echo htmlspecialchars($order['order_management_id']); ?>">
                                             <p class="title is-6"><?php echo htmlspecialchars($order['product_name'] ?? '商品情報なし'); ?></p>
                                             <p class="subtitle is-7">¥<?php echo number_format($order['price'] ?? 0); ?> 円</p>
                                             <p>付属品: (別途取得)</p>
