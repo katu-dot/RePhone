@@ -1,71 +1,84 @@
 <?php
-// セッションを開始
+// --- ▼ デバッグ用：エラーを強制的に表示 ▼ ---
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+// --- ▲ デバッグ用 ▲ ---
+
 session_start();
 
 // 1. 共通ファイルの読み込み
 require './header.php'; 
 require '../config/db-connect.php'; 
-require '../config/left-menu.php'; 
+// --- ▼ DB接続処理（K3スタイル）▼ ---
+try {
+    $pdo = new PDO($connect, USER, PASS); 
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    echo "<div class='notification is-danger'>データベース接続エラー: " . htmlspecialchars($e->getMessage()) . "</div>";
+    exit();
+}
+// --- ▲ DB接続処理 ▲ ---
+
 
 // 2. GETパラメータ（注文ID）の検証
 // -----------------------------------------------------
-$order = null; // 注文データを格納する変数
+$order = null;
 
-// 注文マスター(order_master.php)から 'id' (order_management_id) を受け取る
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     echo "<div class='main-content'><p class='has-text-danger'>無効な注文IDです。</p></div>";
     require './footer.php';
     exit();
 }
-$order_id = intval($_GET['id']); // 安全な数値としてIDを取得
+$order_id = intval($_GET['id']); 
 
-// 3. データベースからの詳細データ取得
+// 3. データベースからの詳細データ取得 (本来のクエリに戻す)
 // -----------------------------------------------------
 try {
-    // 注文(OM)、顧客(CM)、注文明細(ODM)、商品管理(PM)、商品(P)をすべて結合
+    // --- ▼ 修正されたSQLクエリ：単一の注文IDで絞り込み、全詳細情報を取得 ▼ ---
     $sql = "
+        -- ---
+        -- 注文詳細ページ (order_detail.php) 用のSELECTクエリ
+        -- ---
         SELECT 
             OM.order_date,
             OM.payment_confirmation,
+            OM.delivery_date,         -- 【追加】配達希望日
+            OM.delivery_time,         -- 【追加】配達希望時間
             CM.name AS customer_name,
-            CM.customer_management_id, -- レイアウトの「顧客番号」
+            CM.customer_management_id,
             CM.phone AS customer_phone,
             CM.address AS customer_address,
+            CM.postal_code,           -- 【追加】郵便番号
             P.product_name,
             P.price,
             P.image AS product_image
         FROM 
             order_management OM
-        -- 注文(OM) -> 顧客(CM)
         INNER JOIN 
             customer_management CM ON OM.customer_management_id = CM.customer_management_id
-        -- 注文(OM) -> 注文明細(ODM) (型変換JOIN)
         LEFT JOIN
             order_detail_management ODM ON CAST(OM.order_management_id AS CHAR) = ODM.order_management_id
-        -- 注文明細(ODM) -> 商品管理(PM) (型変換JOIN)
         LEFT JOIN
             product_management PM ON ODM.product_management_id = CAST(PM.product_management_id AS CHAR)
-        -- 商品管理(PM) -> 商品(P)
         LEFT JOIN
             product P ON PM.product_id = P.product_id
         WHERE 
-            OM.order_management_id = ? -- 受け取ったIDで絞り込み
-        LIMIT 1 -- 注文は1件
+            OM.order_management_id = ? -- プレースホルダ
+        LIMIT 1
     ";
     
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$order_id]);
-    $order = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute([$order_id]); // ★配列渡し
+    $order = $stmt->fetch(PDO::FETCH_ASSOC); // ★1件だけ取得
 
-    // 注文が見つからない場合の処理
     if (!$order) {
-        echo "<div class='main-content'><p class='has-text-danger'>指定された注文は見つかりません。</p></div>";
+        echo "<div class='main-content'><p class='has-text-danger'>指定された注文ID ({$order_id}) の詳細情報が見つかりませんでした。</p></div>";
         require './footer.php';
         exit();
     }
 
 } catch (PDOException $e) {
-    echo "<div class='main-content'><p class='has-text-danger'>データベースエラー: " . $e->getMessage() . "</p></div>";
+    echo "<div class='main-content'><p class='has-text-danger'>データベースエラー: " . htmlspecialchars($e->getMessage()) . "</p></div>";
     require './footer.php';
     exit();
 }
@@ -122,15 +135,15 @@ try {
                         </tr>
                         <tr>
                             <th>郵便番号</th>
-                            <td class="has-text-grey-light">(DBに項目なし)</td>
+                            <td><?php echo htmlspecialchars($order['postal_code'] ?? '未設定'); ?></td>
                         </tr>
                         <tr>
                             <th>配達希望日</th>
-                            <td class="has-text-grey-light">(DBに項目なし)</td>
+                            <td><?php echo htmlspecialchars($order['delivery_date'] ?? '未設定'); ?></td>
                         </tr>
                         <tr>
                             <th>配達希望時間</th>
-                            <td class="has-text-grey-light">(DBに項目なし)</td>
+                            <td><?php echo htmlspecialchars($order['delivery_time'] ?? '未設定'); ?></td>
                         </tr>
                         <tr>
                             <th>入金状況</th>
@@ -149,6 +162,5 @@ try {
 </div>
 
 <?php 
-// 4. フッターの読み込みとDB切断
 require './footer.php'; 
 ?>
