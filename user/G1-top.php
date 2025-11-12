@@ -47,7 +47,7 @@ try {
 <section class="section">
     <div class="container">
 
-        <form action="search_result.php" method="GET">
+        <form action="G2-search_result.php" method="GET">
             <div class="field">
                 <div class="control has-icons-left">
                     <input class="input is-medium is-rounded" type="text" name="q" placeholder="ワード検索">
@@ -75,7 +75,7 @@ try {
                         <img src="../img/featurePC.png" alt="PC特集" style="width: 100%; height: auto; object-fit: contain;">
                     </figure>
                 </div>
-                 </div>
+            </div>
             
             <div class="swiper-button-prev has-text-primary" style="left: -10px;"></div>
             <div class="swiper-button-next has-text-primary" style="right: -10px;"></div>
@@ -105,7 +105,7 @@ try {
                 <?php foreach ($products as $product): ?>
                     <div class="column is-half-mobile is-half-tablet is-one-quarter-desktop">
                         <div class="card" style="height: 100%;">
-                            <a href="product_detail.php?id=<?php echo htmlspecialchars($product['product_id']); ?>">
+                            <a href="G3-product_detail.php?id=<?php echo htmlspecialchars($product['product_id']); ?>">
                                 <div class="card-image">
                                     <figure class="image is-1by1">
                                         <img src="../<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['product_name']); ?>" style="object-fit: contain; padding: 10px;">
@@ -124,7 +124,7 @@ try {
             <?php endif; ?>
 
         </div> <div class="block has-text-centered my-6">
-            <a href="search_result.php" class="button is-medium is-dark is-outlined">
+            <a href="G2-search_result.php" class="button is-medium is-dark is-outlined">
                 <span>もっと見る</span>
                 <span class="icon">
                     <i class="fas fa-chevron-down"></i>
