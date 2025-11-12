@@ -42,13 +42,13 @@ try {
         SELECT 
             OM.order_date,
             OM.payment_confirmation,
-            OM.delivery_date,         -- 【追加】配達希望日
-            OM.delivery_time,         -- 【追加】配達希望時間
+            OM.delivery_date,
+            OM.delivery_time,
             CM.name AS customer_name,
             CM.customer_management_id,
             CM.phone AS customer_phone,
             CM.address AS customer_address,
-            CM.postal_code,           -- 【追加】郵便番号
+            CM.postal_code,
             P.product_name,
             P.price,
             P.image AS product_image
@@ -99,9 +99,21 @@ try {
             <div class="column is-one-third">
                 <div class="card">
                     <div class="card-image">
-                        <figure class="image is-4by3">
-                            <img src="../<?php echo htmlspecialchars($order['product_image'] ?? 'img/default.jpg'); ?>" alt="<?php echo htmlspecialchars($order['product_name']); ?>">
-                        </figure>
+                    <figure class="image is-4by3">
+    <?php
+        // 画像のパスを設定
+        $imageBaseUrl = '../img/';
+$imageFilename = ltrim($order['product_image'] ?? '', '/');
+$imagePath = $imageBaseUrl . $imageFilename;
+
+if (!empty($order['product_image'])) {
+    echo '<img src="' . htmlspecialchars($imagePath) . '" alt="' . htmlspecialchars($order['product_name']) . '">';
+} else {
+    echo '<img src="' . $imageBaseUrl . 'noimage.png" alt="画像なし">';
+}
+
+    ?>
+</figure>
                     </div>
                     <div class="card-content">
                         <p class="title is-5"><?php echo htmlspecialchars($order['product_name']); ?></p>
