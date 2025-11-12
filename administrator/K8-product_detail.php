@@ -1,6 +1,6 @@
 <?php
-//作者：勝原優太郎
-//作成中
+// 作者：勝原優太郎
+// 商品詳細ページ（K8-product_detail.php）
 
 require '../config/db-connect.php';
 require 'header.php';
@@ -9,24 +9,50 @@ try {
     $pdo = new PDO($connect, USER, PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // URLパラメータの id（customer_management_id）取得
+    // URLパラメータの id（product_management_id）取得
     if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
         echo '<div class="notification is-danger">不正なアクセスです。</div>';
         exit;
     }
 
-    $customer_management_id = (int)$_GET['id'];
+    $product_management_id = (int)$_GET['id'];
 
-    // 顧客情報を取得（customer_managementテーブルから）
-    $sql = "SELECT * FROM customer_management WHERE customer_management_id = :customer_management_id";
+    // 商品情報取得（product_management + product + status を結合）
+    $sql = "
+        SELECT 
+            pm.product_management_id,
+            pm.admin_id,
+            pm.product_id,
+            pm.status_id,
+            pm.accessories,
+            pm.stock,
+            p.product_name,
+            p.product_description,
+            p.price,
+            p.image,
+            p.maker,
+            p.release_date,
+            p.cpu,
+            p.memory,
+            p.ssd,
+            p.drive,
+            p.display,
+            p.os,
+            s.status_name
+        FROM product_management pm
+        INNER JOIN product p ON pm.product_id = p.product_id
+        INNER JOIN status s ON pm.status_id = s.status_id
+        WHERE pm.product_management_id = :product_management_id
+    ";
+
     $stmt = $pdo->prepare($sql);
-    $stmt->bindValue(':customer_management_id', $customer_management_id, PDO::PARAM_INT);
+    $stmt->bindValue(':product_management_id', $product_management_id, PDO::PARAM_INT);
     $stmt->execute();
 
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+    $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$customer) {
-        echo '<div class="notification is-warning">該当する顧客情報が見つかりません。</div>';
+    if (!$product) {
+        echo '<div class="notification is-warning">該当する商品が見つかりません。</div>';
         exit;
     }
 
@@ -37,28 +63,102 @@ try {
 ?>
 
 <div class="columns">
+  <!-- 左メニュー -->
+  <?php require '../config/left-menu.php'; ?>
 
-<!-- 左サイドメニュー -->
-<?php require '../config/left-menu.php'; ?>
+  <!-- 右メイン -->
+  <div class="column" style="padding: 2rem;">
+    <h1 class="title is-4">商品管理／商品マスター／商品マスター詳細</h1>
+    <h2 class="subtitle is-6 mb-5">商品詳細</h2>
 
-<!-- 右側メインコンテンツ -->
-<div class="column" style="padding: 2rem;">
+    <!-- 商品全体をカード風に -->
+    <div class="columns">
+      <!-- 左側：商品カード -->
+      <div class="column is-one-third">
+        <div class="card">
+          <div class="card-content">
+          <figure class="image is-4by3">
+    <?php
+        // 画像のパスを設定
+        $imageFilename = ltrim($product['image'], '/');
+$imageBaseUrl = '../img/';
+$imagePath = $imageBaseUrl . htmlspecialchars($imageFilename);
 
-    <h1 class="title is-4">顧客管理／顧客マスター／顧客マスター詳細</h1>
-    <h2 class="subtitle is-6">顧客詳細</h2>
+if (!empty($product['image'])) {
+    echo '<img src="' . $imagePath . '" alt="' . htmlspecialchars($product['product_name']) . '">';
+} else {
+    echo '<img src="' . $imageBaseUrl . 'noimage.png" alt="画像なし">';
+}
 
-    <div class="box">
-        <p><strong>会員登録日：</strong> <?= htmlspecialchars($customer['registration_date']) ?></p>
-        <p><strong>氏名：</strong> <?= htmlspecialchars($customer['name']) ?> 様</p>
-        <p><strong>メールアドレス：</strong> <?= htmlspecialchars($customer['email']) ?></p>
-        <p><strong>電話番号：</strong> <?= htmlspecialchars($customer['phone']) ?></p>
-        <p><strong>郵便番号：</strong> <?= htmlspecialchars($customer['postal_code']) ?></p>
-        <p><strong>住所：</strong> <?= htmlspecialchars($customer['address']) ?></p>
+    ?>
+</figure>
+
+
+
+            <hr>
+            <p class="title is-5"><?= htmlspecialchars($product['product_name']); ?></p>
+            <p class="subtitle is-6 has-text-danger">¥<?= number_format($product['price']); ?> 円</p>
+            <p class="mt-3">在庫数：<strong><?= htmlspecialchars($product['stock']); ?>個</strong></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右側：詳細情報 -->
+      <div class="column is-two-thirds">
+        <table class="table is-fullwidth is-striped">
+          <tbody>
+          <tr>
+              <th>メーカー</th>
+              <td><?= htmlspecialchars($product['maker'] ?: '―'); ?></td>
+            </tr>
+            <tr>
+              <th>発売日</th>
+              <td><?= htmlspecialchars($product['release_date'] ?: '―'); ?></td>
+            </tr>
+            <tr>
+              <th>商品説明</th>
+              <td><?= nl2br(htmlspecialchars($product['product_description'])); ?></td>
+            </tr>
+            <tr>
+              <th>CPU</th>
+              <td><?= htmlspecialchars($product['cpu'] ?: '―'); ?></td>
+            </tr>
+            <tr>
+              <th>メモリ</th>
+              <td><?= htmlspecialchars($product['memory'] ?: '―'); ?></td>
+            </tr>
+            <tr>
+              <th>SSD</th>
+              <td><?= htmlspecialchars($product['ssd'] ?: '―'); ?></td>
+            </tr>
+            <tr>
+              <th>ドライブ</th>
+              <td><?= htmlspecialchars($product['drive'] ?: '―'); ?></td>
+            </tr>
+            <tr>
+              <th>ディスプレイ</th>
+              <td><?= htmlspecialchars($product['display'] ?: '―'); ?></td>
+            </tr>
+            <tr>
+              <th>OS</th>
+              <td><?= htmlspecialchars($product['os'] ?: '―'); ?></td>
+            </tr>
+            <tr>
+              <th>付属品</th>
+              <td><?= htmlspecialchars($product['accessories'] ?: '―'); ?></td>
+            </tr>
+            <tr>
+              <th>状態区分</th>
+              <td><?= htmlspecialchars($product['status_name']); ?></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <a href="K3-customer_mastar.php" class="button is-light">顧客一覧へ戻る</a>
-
-</div>
+    <!-- 戻るボタン -->
+    <a href="K7-product_master.php" class="button is-light mt-4">商品一覧へ戻る</a>
+  </div>
 </div>
 
 <?php require 'footer.php'; ?>

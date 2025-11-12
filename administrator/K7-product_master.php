@@ -183,10 +183,10 @@ try {
               <div class="card-content">
                 <a href="K8-product_detail.php?id=<?= htmlspecialchars($p['product_management_id']); ?>">
                   <p class="title is-6"><?= htmlspecialchars($p['product_name']); ?></p>
-                  <p class="subtitle is-7 has-text-grey">¥<?= number_format($p['price']); ?> 円</p>
+                  <p class="subtitle is-7 has-text-danger">¥<?= number_format($p['price']); ?> 円</p>
                   <p>付属品：<?= htmlspecialchars($p['accessories'] ?: '―'); ?></p>
                   <p>カテゴリ：<?= htmlspecialchars($p['status_name']); ?></p>
-                  <p>在庫数：<strong><?= htmlspecialchars($p['stock']); ?></strong></p>
+                  <p>在庫数：<strong><?= htmlspecialchars($p['stock']); ?>個</strong></p>
                 </a>
               </div>
             </div>
