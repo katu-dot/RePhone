@@ -17,7 +17,7 @@
           <span class="icon is-small"><i class="fas fa-chevron-down"></i></span>
         </a>
         <ul class="submenu" style="display:none;">
-          <li><a href="K3-customer_mastar.php">顧客マスター</a></li>
+          <li><a href="customer_management.php">顧客マスター</a></li>
         </ul>
       </li>
 
