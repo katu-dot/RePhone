@@ -4,11 +4,12 @@ session_start();
 require '../config/db-connect.php';
 
 // すでにログインしている場合はリダイレクト
-if (isset($_SESSION['admin_id'])) {
+/*if (isset($_SESSION['admin_id'])) {
     header('Location: K2-home.php');
     exit();
-}
+}*/
 
+$pdo = new PDO($connect, USER, PASS);
 $error_message = "";
 
 // フォーム送信時の処理
@@ -17,12 +18,12 @@ if (isset($_POST['admin_id']) && isset($_POST['password'])) {
     $password = $_POST['password'];
 
     // DB接続と照合
-    $sql = $pdo->prepare('SELECT * FROM admin WHERE admin_id = ?');
+    $sql = $pdo->prepare('SELECT * FROM `admin` WHERE admin_id = ?');
     $sql->execute([$admin_id]);
     $admin = $sql->fetch();
 
     // パスワード照合
-    if ($admin && password_verify($password, $admin['password'])) {
+    if ($admin && $password === $admin['password']) {
         $_SESSION['admin_id'] = $admin['admin_id'];
         header('Location: K2-home.php');
         exit();
