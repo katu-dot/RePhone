@@ -17,7 +17,8 @@
           <span class="icon is-small"><i class="fas fa-chevron-down"></i></span>
         </a>
         <ul class="submenu" style="display:none;">
-          <li><a href="customer_management.php">顧客マスター</a></li>
+          <li><a href="K3-customer_master.php">顧客マスター</a></li>
+          <li><a href="K4-customer_register.php">顧客登録</a></li>
         </ul>
       </li>
 
@@ -29,6 +30,7 @@
         </a>
         <ul class="submenu" style="display:none;">
           <li><a href="K5-order_master.php">注文マスター</a></li>
+          <li><a href="K6-order_register.php">注文登録</a></li>
         </ul>
       </li>
 
