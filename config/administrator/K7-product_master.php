@@ -12,10 +12,14 @@ try {
     $search_query = $_GET['q'] ?? '';
     $category = $_GET['category'] ?? 'all';
     $order = $_GET['order'] ?? 'default';
+    $out_of_stock = isset($_GET['out_of_stock']) ? true : false; // 追加：在庫切れフラグ
 
     // --- カテゴリ一覧取得 ---
     $catStmt = $pdo->query("SELECT category_id, category_name FROM category_management");
     $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // --- 総商品数取得 ---
+    $total_products = $pdo->query("SELECT COUNT(*) FROM product_management")->fetchColumn();
 
     // ベースSQL（shipping_date も取得）
     $sql = "
@@ -52,6 +56,11 @@ try {
     if ($category !== 'all') {
         $conditions[] = "pm.category_id = :category";
         $params[':category'] = $category;
+    }
+
+    // 在庫切れ条件
+    if ($out_of_stock) {
+        $conditions[] = "pm.stock = 0";
     }
 
     // WHERE句
@@ -101,7 +110,10 @@ try {
 
   <div class="column" style="padding: 2rem;">
     <h1 class="title is-4">商品管理／商品マスター</h1>
-    <h2 class="subtitle is-6 mb-4">商品一覧</h2>
+    <h2 class="subtitle is-6">商品一覧</h2>
+
+    <!-- 総商品数表示 -->
+    <h3 class="subtitle is-4 mb-3">総商品数：<?= number_format($total_products) ?> 件</h3>
 
     <!-- 検索フォーム -->
     <form method="GET" class="mb-5">
@@ -118,7 +130,7 @@ try {
           <button type="submit" class="button is-info">検索</button>
         </div>
 
-        <?php if ($search_query !== '' || $category !== 'all' || $order !== 'default'): ?>
+        <?php if ($search_query !== '' || $category !== 'all' || $order !== 'default' || $out_of_stock): ?>
           <div class="control">
             <a href="K7-product_master.php" class="button is-light">検索結果をクリア</a>
           </div>
@@ -154,14 +166,23 @@ try {
             </select>
           </div>
         </div>
+
+        <!-- 在庫切れボタン -->
+        <div class="control">
+          <button type="submit" name="out_of_stock" value="1" class="button is-danger">
+            在庫切れの商品
+          </button>
+        </div>
       </div>
     </form>
 
     <?php $result_count = count($products); ?>
-    <?php if ($search_query !== '' && $result_count > 0): ?>
+    <?php if ($out_of_stock && $result_count === 0): ?>
+        <div class="notification is-warning">在庫切れの商品はありません。</div>
+    <?php elseif ($search_query !== '' && $result_count > 0): ?>
         <h3 class="subtitle is-5 mt-5">検索結果：<?= $result_count ?>件の商品が見つかりました</h3>
     <?php elseif ($search_query !== '' && $result_count === 0): ?>
-        <div class="notification is-warning">該当する商品が見つかりませんでした。</div>
+        <div class="notification is-warning">該当する商品が見つかりませんでした</div>
     <?php endif; ?>
 
     <!-- 商品カード一覧 -->
@@ -214,7 +235,7 @@ try {
             </a>
           </div>
         <?php endforeach; ?>
-      <?php else: ?>
+      <?php elseif (!$out_of_stock): ?>
         <div class="notification is-warning">該当する商品が見つかりません。</div>
       <?php endif; ?>
     </div>

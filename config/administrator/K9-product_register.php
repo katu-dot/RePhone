@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // ▼ 必須チェック
-    if ($product_name && $price && $stock && $shipping_id && empty($message)) {
+    if ($product_name && $price !== '' && $stock !== '' && $shipping_id && empty($message)) {
 
         try {
             $pdo->beginTransaction();
