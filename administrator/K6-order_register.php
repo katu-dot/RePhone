@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 
 session_start();
 
-require '../config/db-connect.php'; // ← DB接続はHTML出力前に呼び出す
+require '../config/db-connect.php';
 
 // --- ▼ DB接続 ▼ ---
 try {
@@ -15,6 +15,12 @@ try {
 } catch (PDOException $e) {
     die("<div class='notification is-danger'>DB接続エラー: " . htmlspecialchars($e->getMessage()) . "</div>");
 }
+
+// -----------------------------------------------------------
+// ▼ 検索キーワード取得（GET）
+// -----------------------------------------------------------
+$keyword_customer = $_GET['keyword_customer'] ?? '';
+$keyword_product  = $_GET['keyword_product'] ?? '';
 
 // -----------------------------------------------------------
 // ▼ 注文登録 POST 処理
@@ -61,7 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->commit();
 
-        // ▼ 完了後リダイレクト
         header("Location: K6-order_detail.php?id={$order_management_id}&message=registered");
         exit;
 
@@ -72,33 +77,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // -----------------------------------------------------------
-// ▼ 表示処理（HTML出力）
+// ▼ 顧客一覧（検索対応）
 // -----------------------------------------------------------
-
-// 商品一覧
 try {
-    $sqlProduct = "
-        SELECT 
-            PM.product_management_id,
-            P.product_name,
-            P.price
-        FROM product_management PM
-        INNER JOIN product P ON PM.product_id = P.product_id
-        ORDER BY P.product_name ASC
+    $sqlCustomer = "
+        SELECT customer_management_id, name, email
+        FROM customer_management
+        WHERE name LIKE :keyword OR email LIKE :keyword
+        ORDER BY name ASC
     ";
-    $productStmt = $pdo->query($sqlProduct);
-    $products = $productStmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    die("<div class='notification is-danger'>商品取得エラー: " . htmlspecialchars($e->getMessage()) . "</div>");
-}
-
-// 顧客一覧
-try {
-    $sqlCustomer = "SELECT customer_management_id, name FROM customer_management ORDER BY name ASC";
-    $customerStmt = $pdo->query($sqlCustomer);
-    $customers = $customerStmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare($sqlCustomer);
+    $stmt->execute([':keyword' => "%{$keyword_customer}%"]);
+    $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     die("<div class='notification is-danger'>顧客取得エラー: " . htmlspecialchars($e->getMessage()) . "</div>");
+}
+
+// -----------------------------------------------------------
+// ▼ 商品一覧（検索対応）
+// -----------------------------------------------------------
+try {
+    $sqlProduct = "
+    SELECT 
+        PM.product_management_id,
+        PM.stock,
+        P.product_name,
+        P.price,
+        S.shipping_date
+    FROM product_management PM
+    INNER JOIN product P ON PM.product_id = P.product_id
+    LEFT JOIN shipping S ON PM.shipping_id = S.shipping_id
+    WHERE P.product_name LIKE :keyword
+    ORDER BY P.product_name ASC
+";
+    $stmt = $pdo->prepare($sqlProduct);
+    $stmt->execute([':keyword' => "%{$keyword_product}%"]);
+    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    die("<div class='notification is-danger'>商品取得エラー: " . htmlspecialchars($e->getMessage()) . "</div>");
 }
 
 // HTML開始
@@ -111,9 +127,44 @@ require './header.php';
 <div class="column" style="padding: 2rem;">
 
 <h1 class="title is-4">注文管理／注文登録</h1>
-<h2 class="subtitle is-6">新規注文の登録</h2>
 
 <div class="box">
+
+<!-- ▼ 顧客検索フォーム -->
+<form method="get" class="mb-4">
+    <label class="label">顧客検索</label>
+    <div class="field has-addons">
+        <div class="control is-expanded">
+            <input class="input" 
+                   type="text" 
+                   name="keyword_customer" 
+                   value="<?= htmlspecialchars($keyword_customer); ?>"
+                   placeholder="顧客名・メールで検索">
+        </div>
+        <div class="control">
+            <button class="button is-info">検索</button>
+        </div>
+    </div>
+</form>
+
+<!-- ▼ 商品検索フォーム -->
+<form method="get" class="mb-4">
+    <label class="label">商品検索</label>
+    <div class="field has-addons">
+        <div class="control is-expanded">
+            <input class="input" 
+                   type="text" 
+                   name="keyword_product" 
+                   value="<?= htmlspecialchars($keyword_product); ?>"
+                   placeholder="商品名で検索">
+        </div>
+        <div class="control">
+            <button class="button is-info">検索</button>
+        </div>
+    </div>
+</form>
+
+<!-- ▼ 注文登録フォーム -->
 <form action="" method="post">
 
 <table class="table is-fullwidth">
@@ -126,7 +177,7 @@ require './header.php';
                 <option value="">選択してください</option>
                 <?php foreach ($customers as $c): ?>
                     <option value="<?= $c['customer_management_id']; ?>">
-                        <?= htmlspecialchars($c['name']); ?>
+                        <?= htmlspecialchars($c['name']); ?>（<?= htmlspecialchars($c['email']); ?>）
                     </option>
                 <?php endforeach ?>
             </select>
@@ -141,10 +192,19 @@ require './header.php';
             <select name="product_management_id" required>
                 <option value="">選択してください</option>
                 <?php foreach ($products as $p): ?>
-                    <option value="<?= $p['product_management_id']; ?>">
-                        <?= htmlspecialchars($p['product_name']); ?>（<?= number_format($p['price']); ?>円）
+                    <?php 
+                        $stock = (int)($p['stock'] ?? 0);
+                        $display_name = htmlspecialchars($p['product_name']) . " (".number_format($p['price'])."円) | " . ($p['shipping_date'] ?? '発送日未設定');
+                        if ($stock > 0) {
+                            $display_name .= " | 在庫数: {$stock}個";
+                        } else {
+                            $display_name .= " | 在庫がありません";
+                        }
+                    ?>
+                    <option value="<?= $p['product_management_id']; ?>" <?= $stock === 0 ? 'disabled style="color:red;"' : ''; ?>>
+                        <?= $display_name; ?>
                     </option>
-                <?php endforeach ?>
+                <?php endforeach; ?>
             </select>
         </div>
     </td>
@@ -169,9 +229,6 @@ require './header.php';
         </div>
     </td>
 </tr>
-
-
-
 
 <tr>
     <th>入金状況</th>

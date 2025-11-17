@@ -44,6 +44,9 @@ try {
     $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $result_count = count($customers);
 
+    // 総顧客数を取得
+    $total_customers = $pdo->query("SELECT COUNT(*) FROM customer_management")->fetchColumn();
+
 } catch (PDOException $e) {
     echo '<div class="notification is-danger">接続エラー: ' . htmlspecialchars($e->getMessage()) . '</div>';
     exit;
@@ -56,6 +59,9 @@ try {
 <div class="column" style="padding: 2rem;">
     <h1 class="title is-4">顧客管理／顧客マスター</h1>
     <h2 class="subtitle is-6">顧客一覧</h2>
+
+    <!-- 総顧客数 -->
+    <h3 class="subtitle is-4 mb-3">総顧客数：<?= number_format($total_customers) ?> 名</h3>
 
     <!-- メッセージ表示 -->
     <?php if (!empty($_GET['message'])): ?>
