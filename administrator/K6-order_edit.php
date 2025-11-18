@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->commit();
 
-        // 更新後は詳細ページにリダイレクト
+        // 更新後は詳細ページにリダイレクト + メッセージ
         header("Location: K6-order_detail.php?id={$order_id}&message=updated");
         exit();
 
@@ -126,6 +126,13 @@ require './header.php';
         <h1 class="title is-4">注文管理 / 注文編集</h1>
         <h2 class="subtitle is-6">注文内容を編集してください</h2>
 
+        <!-- 更新完了メッセージ -->
+        <?php if (isset($_GET['message']) && $_GET['message'] === 'updated'): ?>
+            <div class="notification is-success">
+                注文情報の編集が完了しました。
+            </div>
+        <?php endif; ?>
+
         <div class="box">
             <form method="post">
 
@@ -173,7 +180,7 @@ require './header.php';
                         <td>
                             <div class="select is-fullwidth">
                                 <select name="delivery_time">
-                                    <option value="">未設定</option>
+                                    <option value="">指定なし</option>
                                     <option value="08:00-10:00" <?= $order['delivery_time']=='08:00-10:00'?'selected':''; ?>>8時〜10時</option>
                                     <option value="11:00-13:00" <?= $order['delivery_time']=='11:00-13:00'?'selected':''; ?>>11時〜13時</option>
                                     <option value="14:00-16:00" <?= $order['delivery_time']=='14:00-16:00'?'selected':''; ?>>14時〜16時</option>
