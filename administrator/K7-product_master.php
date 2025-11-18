@@ -12,72 +12,75 @@ try {
     $search_query = $_GET['q'] ?? '';
     $category = $_GET['category'] ?? 'all';
     $order = $_GET['order'] ?? 'default';
+    $out_of_stock = isset($_GET['out_of_stock']) ? true : false; // 追加：在庫切れフラグ
 
-    // ベースSQL（product_management と product と status を結合）
+    // --- カテゴリ一覧取得 ---
+    $catStmt = $pdo->query("SELECT category_id, category_name FROM category_management");
+    $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // --- 総商品数取得 ---
+    $total_products = $pdo->query("SELECT COUNT(*) FROM product_management")->fetchColumn();
+
+    // ベースSQL（shipping_date も取得）
     $sql = "
         SELECT 
             pm.product_management_id,
             pm.admin_id,
             pm.product_id,
             pm.status_id,
-            s.status_name,
             pm.accessories,
             pm.stock,
+            pm.category_id,
             p.product_name,
             p.product_description,
-            p.price
+            p.price,
+            p.image,
+            s.status_name,
+            sh.shipping_date
         FROM product_management pm
         INNER JOIN product p ON pm.product_id = p.product_id
         INNER JOIN status s ON pm.status_id = s.status_id
+        LEFT JOIN shipping sh ON p.shipping_id = sh.shipping_id
     ";
 
     $conditions = [];
     $params = [];
 
-    // 検索ワード（商品名 or 説明に部分一致）
+    // 検索条件
     if ($search_query !== '') {
         $conditions[] = "(p.product_name LIKE :keyword OR p.product_description LIKE :keyword)";
         $params[':keyword'] = '%' . $search_query . '%';
     }
 
-    // カテゴリ条件（status_id）
+    // カテゴリ条件
     if ($category !== 'all') {
         $conditions[] = "pm.category_id = :category";
         $params[':category'] = $category;
     }
 
-    // WHERE句の結合
+    // 在庫切れ条件
+    if ($out_of_stock) {
+        $conditions[] = "pm.stock = 0";
+    }
+
+    // WHERE句
     if ($conditions) {
         $sql .= ' WHERE ' . implode(' AND ', $conditions);
     }
 
     // 並び替え
     switch ($order) {
-        case 'price_asc':
-            $sql .= " ORDER BY p.price ASC";
-            break;
-        case 'price_desc':
-            $sql .= " ORDER BY p.price DESC";
-            break;
-        case 'status_asc':
-            $sql .= " ORDER BY pm.status_id ASC";
-            break;
-        case 'status_desc':
-            $sql .= " ORDER BY pm.status_id DESC";
-            break;
-        case 'stock_asc':
-            $sql .= " ORDER BY pm.stock ASC";
-            break;
-        case 'stock_desc':
-            $sql .= " ORDER BY pm.stock DESC";
-            break;
-        case 'old':
-            $sql .= " ORDER BY pm.product_management_id ASC";
-            break;
+        case 'price_asc': $sql .= " ORDER BY p.price ASC"; break;
+        case 'price_desc': $sql .= " ORDER BY p.price DESC"; break;
+        case 'status_asc': $sql .= " ORDER BY pm.status_id ASC"; break;
+        case 'status_desc': $sql .= " ORDER BY pm.status_id DESC"; break;
+        case 'stock_asc': $sql .= " ORDER BY pm.stock ASC"; break;
+        case 'stock_desc': $sql .= " ORDER BY pm.stock DESC"; break;
+        case 'shipping_asc': $sql .= " ORDER BY sh.shipping_id ASC"; break;
+        case 'shipping_desc': $sql .= " ORDER BY sh.shipping_id DESC"; break;
+        case 'old': $sql .= " ORDER BY pm.product_management_id ASC"; break;
         case 'new':
-        default:
-            $sql .= " ORDER BY pm.product_management_id DESC";
-            break;
+        default: $sql .= " ORDER BY pm.product_management_id DESC"; break;
     }
 
     // 実行
@@ -94,53 +97,55 @@ try {
 }
 ?>
 
+<!-- 削除完了メッセージ -->
+<?php if (!empty($_GET['message'])): ?>
+  <div class="notification is-info">
+    <?= htmlspecialchars($_GET['message']); ?>
+  </div>
+<?php endif; ?>
+
 <div class="columns">
   <!-- 左メニュー -->
   <?php require '../config/left-menu.php'; ?>
 
-  <!-- メイン -->
   <div class="column" style="padding: 2rem;">
     <h1 class="title is-4">商品管理／商品マスター</h1>
-    <h2 class="subtitle is-6 mb-4">商品一覧</h2>
+    <h2 class="subtitle is-6">商品一覧</h2>
+
+    <!-- 総商品数表示 -->
+    <h3 class="subtitle is-4 mb-3">総商品数：<?= number_format($total_products) ?> 件</h3>
 
     <!-- 検索フォーム -->
     <form method="GET" class="mb-5">
       <div class="field is-grouped is-grouped-multiline">
-
-        <!-- ラベル -->
         <div class="control">
           <label class="label" style="margin-top: 8px;">商品検索：</label>
         </div>
 
-        <!-- ワード検索 -->
         <div class="control is-expanded">
-          <input 
-            class="input" 
-            type="text" 
-            name="q" 
-            placeholder="ワード検索" 
-            value="<?= htmlspecialchars($search_query) ?>">
+          <input class="input" type="text" name="q" placeholder="ワード検索" value="<?= htmlspecialchars($search_query) ?>">
         </div>
 
-        <!-- 検索ボタン -->
         <div class="control">
           <button type="submit" class="button is-info">検索</button>
         </div>
 
-        <!-- 検索結果クリア -->
-        <?php if ($search_query !== '' || $category !== 'all' || $order !== 'default'): ?>
+        <?php if ($search_query !== '' || $category !== 'all' || $order !== 'default' || $out_of_stock): ?>
           <div class="control">
             <a href="K7-product_master.php" class="button is-light">検索結果をクリア</a>
           </div>
         <?php endif; ?>
 
-        <!-- カテゴリ選択（status_nameを反映） -->
+        <!-- カテゴリ選択 -->
         <div class="control">
           <div class="select">
             <select name="category" onchange="this.form.submit()">
               <option value="all" <?= $category === 'all' ? 'selected' : '' ?>>すべての商品</option>
-              <option value="1" <?= $category === '1' ? 'selected' : '' ?>>スマートフォン</option>
-              <option value="2" <?= $category === '2' ? 'selected' : '' ?>>パソコン</option>
+              <?php foreach ($categories as $cat): ?>
+                <option value="<?= $cat['category_id'] ?>" <?= $category == $cat['category_id'] ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($cat['category_name']) ?>
+                </option>
+              <?php endforeach; ?>
             </select>
           </div>
         </div>
@@ -152,47 +157,85 @@ try {
               <option value="default" <?= $order === 'default' ? 'selected' : '' ?>>並び替え：デフォルト</option>
               <option value="price_asc" <?= $order === 'price_asc' ? 'selected' : '' ?>>価格：安い順</option>
               <option value="price_desc" <?= $order === 'price_desc' ? 'selected' : '' ?>>価格：高い順</option>
-              <option value="status_asc" <?= $order === 'status_asc' ? 'selected' : '' ?>>ランク：A～D順</option>
-              <option value="status_desc" <?= $order === 'status_desc' ? 'selected' : '' ?>>ランク：D～A順</option>
+              <option value="status_asc" <?= $order === 'status_asc' ? 'selected' : '' ?>>ランク：A～C順</option>
+              <option value="status_desc" <?= $order === 'status_desc' ? 'selected' : '' ?>>ランク：C～A順</option>
               <option value="stock_desc" <?= $order === 'stock_desc' ? 'selected' : '' ?>>在庫数：多い順</option>
               <option value="stock_asc" <?= $order === 'stock_asc' ? 'selected' : '' ?>>在庫数：少ない順</option>
+              <option value="shipping_asc" <?= $order === 'shipping_asc' ? 'selected' : '' ?>>発送日：早い順</option>
+              <option value="shipping_desc" <?= $order === 'shipping_desc' ? 'selected' : '' ?>>発送日：遅い順</option>
             </select>
           </div>
+        </div>
+
+        <!-- 在庫切れボタン -->
+        <div class="control">
+          <button type="submit" name="out_of_stock" value="1" class="button is-danger">
+            在庫切れの商品
+          </button>
         </div>
       </div>
     </form>
 
-<?php 
-    $result_count = count($products); 
-?>
-
-<!-- 件数表示 -->
-<?php if ($search_query !== '' && $result_count > 0): ?>
-    <h3 class="subtitle is-5 mt-5">検索結果：<?= $result_count ?>件の商品が見つかりました</h3>
-<?php elseif ($search_query !== '' && $result_count === 0): ?>
-    <div class="notification is-warning">該当する商品が見つかりませんでした。</div>
-<?php endif; ?>
-
+    <?php $result_count = count($products); ?>
+    <?php if ($out_of_stock && $result_count === 0): ?>
+        <div class="notification is-warning">在庫切れの商品はありません。</div>
+    <?php elseif ($search_query !== '' && $result_count > 0): ?>
+        <h3 class="subtitle is-5 mt-5">検索結果：<?= $result_count ?>件の商品が見つかりました</h3>
+    <?php elseif ($search_query !== '' && $result_count === 0): ?>
+        <div class="notification is-warning">該当する商品が見つかりませんでした</div>
+    <?php endif; ?>
 
     <!-- 商品カード一覧 -->
     <div class="columns is-multiline">
       <?php if (!empty($products)): ?>
         <?php foreach ($products as $p): ?>
           <div class="column is-one-third">
-            <div class="card">
-              <div class="card-content">
-                <a href="K8-product_detail.php?id=<?= htmlspecialchars($p['product_management_id']); ?>">
-                  <p class="title is-6"><?= htmlspecialchars($p['product_name']); ?></p>
-                  <p class="subtitle is-7 has-text-grey">¥<?= number_format($p['price']); ?> 円</p>
-                  <p>付属品：<?= htmlspecialchars($p['accessories'] ?: '―'); ?></p>
-                  <p>カテゴリ：<?= htmlspecialchars($p['status_name']); ?></p>
-                  <p>在庫数：<strong><?= htmlspecialchars($p['stock']); ?></strong></p>
-                </a>
+            <a href="K8-product_detail.php?id=<?= htmlspecialchars($p['product_management_id']); ?>" style="text-decoration:none; color:inherit;">
+              <div class="card">
+                <div class="card-content">
+                  <div class="columns is-vcentered">
+                    <div class="column is-two-thirds">
+                      <p class="title is-6"><?= htmlspecialchars($p['product_name']); ?></p>
+                      <p class="subtitle is-7 has-text-danger">¥<?= number_format($p['price']); ?> 円</p>
+                      <p class="subtitle is-7">商品番号：<strong><?= htmlspecialchars($p['product_id']); ?></strong></p>
+                      <p>付属品：<?= htmlspecialchars($p['accessories'] ?: '―'); ?></p>
+                      <p>カテゴリ：
+                        <?php
+                        $cat_name = '―';
+                        foreach ($categories as $c) {
+                            if ($c['category_id'] == $p['category_id']) {
+                                $cat_name = $c['category_name'];
+                                break;
+                            }
+                        }
+                        echo htmlspecialchars($cat_name);
+                        ?>
+                      </p>
+                      <p>ランク：<?= htmlspecialchars($p['status_name'] ?: '―'); ?></p>
+                      <p>在庫数：<strong><?= htmlspecialchars($p['stock']); ?>個</strong></p>
+                      <p>発送日：<?= htmlspecialchars($p['shipping_date'] ?? '―'); ?></p>
+                    </div>
+                    <div class="column is-one-third">
+                      <figure class="image is-4by3">
+                        <?php
+                        $imageFilename = ltrim($p['image'] ?? '', '/'); 
+                        $imageBaseUrl = '../'; 
+                        $imagePath = $imageBaseUrl . htmlspecialchars($imageFilename);
+                        if (!empty($p['image']) && file_exists($imagePath)) {
+                            echo '<img src="' . $imagePath . '" alt="' . htmlspecialchars($p['product_name']) . '">';
+                        } else {
+                            echo '<img src="../img/noimage.png" alt="画像なし">';
+                        }
+                        ?>
+                      </figure>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            </a>
           </div>
         <?php endforeach; ?>
-      <?php else: ?>
+      <?php elseif (!$out_of_stock): ?>
         <div class="notification is-warning">該当する商品が見つかりません。</div>
       <?php endif; ?>
     </div>

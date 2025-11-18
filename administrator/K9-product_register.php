@@ -1,297 +1,324 @@
 <?php
-ob_start();
+// --- ▼ デバッグ用 ▼ ---
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+// --- ▲ デバッグ用 ▲ ---
+
+session_start();
 require '../config/db-connect.php';
+
+// --- ▼ DB接続 ▼ ---
+try {
+    $pdo = new PDO($connect, USER, PASS);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    echo "<div class='notification is-danger'>接続エラー: " . htmlspecialchars($e->getMessage()) . "</div>";
+    exit;
+}
+// --- ▲ DB接続 ▲ ---
+
+$message = '';
+$message_class = 'is-info';
+
+// --- ▼ カテゴリ一覧取得 ▼ ---
+try {
+    $catStmt = $pdo->query("SELECT category_id, category_name FROM category_management ORDER BY category_name ASC");
+    $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $message = "カテゴリ取得エラー: " . htmlspecialchars($e->getMessage());
+    $message_class = 'is-danger';
+}
+
+// --- ▼ shipping（発送日）一覧取得 ▼ ---
+try {
+    $shipStmt = $pdo->query("SELECT shipping_id, shipping_date FROM shipping ORDER BY shipping_id ASC");
+    $shipping_list = $shipStmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $message = "発送日取得エラー: " . htmlspecialchars($e->getMessage());
+    $message_class = 'is-danger';
+}
+
+// --- ▼ 登録処理 ▼ ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $product_name = $_POST['product_name'] ?? '';
-    $price = $_POST['price'] ?? 0;
-    $stock = $_POST['stock'] ?? 0;
+
+    $product_name   = $_POST['product_name'] ?? '';
+    $price          = $_POST['price'] ?? 0;
+    $stock          = $_POST['stock'] ?? 0;
+    $accessories    = $_POST['accessories'] ?? '本体のみ';
+    $spec           = $_POST['spec'] ?? '';
+    $rank           = $_POST['rank'] ?? 'ランクA';
+    $category_id    = $_POST['category_id'] ?? ($categories[0]['category_id'] ?? 1);
+
+    // ★ 修正：shipping_id を受け取る（以前は shipping_date）
+    $shipping_id    = $_POST['shipping_id'] ?? '';
+
+    $status_map = ['ランクA' => 1, 'ランクB' => 2, 'ランクC' => 3];
+    $status_id = $status_map[$rank] ?? 1;
+    $admin_id  = $_SESSION['admin_id'] ?? 1;
+
     $imagePath = '';
 
-    // 画像アップロード処理（ここは同じ）
+    // ▼ 画像アップロード
     if (!empty($_FILES['image']['name'])) {
         $uploadDir = '../uploads/';
         if (!file_exists($uploadDir)) mkdir($uploadDir, 0777, true);
 
         $fileName = date('YmdHis') . '_' . preg_replace('/[^a-zA-Z0-9_\.-]/', '_', basename($_FILES['image']['name']));
         $targetFile = $uploadDir . $fileName;
-        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+        $allowed = ['jpg','jpeg','png','gif','webp'];
         $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
 
         if (in_array($ext, $allowed)) {
             if (move_uploaded_file($_FILES['image']['tmp_name'], $targetFile)) {
-                $imagePath = $fileName;
+                $imagePath = 'uploads/' . $fileName; 
             }
-            error_reporting(E_ALL);
-            ini_set('display_errors', 1);
-            header("Location: K7-product_master.php");
-exit;
         } else {
             $message = "画像ファイルのみアップロードできます。";
+            $message_class = 'is-danger';
         }
     }
 
-    if ($product_name && $price && $stock) {
-        $sql = "INSERT INTO products (product_name, image, price, stock)
-                VALUES (:product_name, :image, :price, :stock)";
-        $stmt = $pdo->prepare($sql);
-        $stmt->bindValue(':product_name', $product_name);
-        $stmt->bindValue(':image', $imagePath);
-        $stmt->bindValue(':price', $price);
-        $stmt->bindValue(':stock', $stock);
-        $stmt->execute();
+    // ▼ 必須チェック
+    if ($product_name && $price !== '' && $stock !== '' && $shipping_id && empty($message)) {
 
-        // ✅ header.php より前に移動
-    } else {
+        try {
+            $pdo->beginTransaction();
+
+            // ▼ product 登録（shipping_id 保存に変更）
+            $sql1 = "INSERT INTO product 
+                (product_name, product_description, price, stock, image, category_id, maker, release_date, cpu, memory, ssd, drive, display, os, shipping_id)
+                VALUES 
+                (:product_name, :spec, :price, :stock, :image, :category_id, :maker, :release_date, :cpu, :memory, :ssd, :drive, :display, :os, :shipping_id)";
+            $stmt1 = $pdo->prepare($sql1);
+            $stmt1->execute([
+                ':product_name'   => $product_name,
+                ':spec'           => $spec,
+                ':price'          => $price,
+                ':stock'          => $stock,
+                ':image'          => $imagePath,
+                ':category_id'    => $category_id,
+                ':maker'          => $_POST['maker'] ?? '',
+                ':release_date'   => $_POST['release_date'] ?? null,
+                ':cpu'            => $_POST['cpu'] ?? '',
+                ':memory'         => $_POST['memory'] ?? '',
+                ':ssd'            => $_POST['ssd'] ?? '',
+                ':drive'          => $_POST['drive'] ?? '',
+                ':display'        => $_POST['display'] ?? '',
+                ':os'             => $_POST['os'] ?? '',
+                ':shipping_id'    => $shipping_id
+            ]);
+
+            $product_id = $pdo->lastInsertId();
+
+            // ▼ product_management 登録
+            $sql2 = "INSERT INTO product_management 
+                (admin_id, product_id, status_id, stock, accessories, spec, category_id)
+                VALUES 
+                (:admin_id, :product_id, :status_id, :stock, :accessories, :spec, :category_id)";
+            $stmt2 = $pdo->prepare($sql2);
+            $stmt2->execute([
+                ':admin_id'    => $admin_id,
+                ':product_id'  => $product_id,
+                ':status_id'   => $status_id,
+                ':stock'       => $stock,
+                ':accessories' => $accessories,
+                ':spec'        => $spec,
+                ':category_id' => $category_id
+            ]);
+
+            $pdo->commit();
+
+            header("Location: K8-product_detail.php?id={$product_id}&message=registered");
+            exit;
+
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            $message = "登録失敗: " . htmlspecialchars($e->getMessage());
+            $message_class = 'is-danger';
+        }
+
+    } else if (empty($message)) {
         $message = "すべての項目を入力してください。";
+        $message_class = 'is-danger';
     }
 }
 
-require 'header.php';
-$message = '';
-
+// --- ▼ 表示部分 ▼ ---
+require './header.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>商品登録 - RePhone_staff</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
-
-<style>
-body {
-  background-color: #f5f5f5;
-  margin: 0;
-  padding: 0;
-}
-
-/* ==== 左メニューとメインの配置調整 ==== */
-.main {
-  padding: 20px 40px 40px 40px;
-  margin-top: 0 !important;
-  width: 100%;
-}
-
-/* ==== ヘッダーとメインの間の隙間を削除 ==== */
-.navbar {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-}
-
-.navbar + .main {
-  margin-top: 0 !important;
-}
-
-/* ==== コンテナデザイン ==== */
-.container {
-  background: #fff;
-  padding: 30px 40px;
-  margin-top: 0;
-  border-radius: 6px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  width: 600px;
-}
-
-/* ==== 見出し ==== */
-.title {
-  color: #000;
-  font-weight: bold;
-  margin-top: 0;
-}
-.subtitle {
-  color: #000;
-  margin-bottom: 20px;
-}
-
-/* ==== 入力フォーム部分 ==== */
-.table td {
-  border: none;
-  padding: 10px 8px;
-  vertical-align: middle;
-}
-.table td:first-child { 
-  font-weight: bold;
-  color: #000;
-  width: 120px;
-}
-.input, .select select, .textarea {
-  background-color: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-.file-input {
-  border: 1px solid #ccc;
-  padding: 6px;
-  border-radius: 4px;
-}
-
-/* ==== アップロードボックス ==== */
-.upload-box {
-  border: 2px dashed #ccc;
-  border-radius: 8px;
-  text-align: center;
-  padding: 20px;
-  background-color: #fafafa;
-  cursor: pointer;
-}
-.upload-box:hover {
-  background-color: #f0f0f0;
-}
-#preview {
-  margin-top: 10px;
-  max-width: 100%;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  display: none;
-}
-
-/* ==== ナビの文字色など ==== */
-.menu-list a { 
-  color: #000 !important; 
-  background-color: transparent !important;
-} 
-.menu-list a:hover { 
-  background-color: #f5f5f5 !important; 
-} 
-.menu-list a.is-active {
-   font-weight: bold;
-   border-left: 4px solid #3273dc;
-   padding-left: 0.5rem; 
-   background-color: #f0f0f0 !important;
-   color: #000 !important; 
-}
-.submenu { 
-  margin-left: 1rem;
-  border-left: 3px solid #3273dc;
-  padding-left: 0.5rem; 
-} 
-.submenu li a { 
-  color: #000; 
-}
-.submenu li a:hover { 
-  color: #3273dc; 
-}
-
-/* ==== 登録ボタン ==== */
-.button.is-white {
-  background-color: white !important;
-  color: #363636 !important;
-  border: 1px solid #ccc !important;
-  width: 200px;
-}
-.button.is-white:hover {
-  background-color: #f2f2f2 !important;
-}
-.columns{
-  text-align: center;
-}
-
-
-</style>
-</head>
-
-<body>
-  <div class="main">
-  <div class="columns">
+<div class="columns">
 <?php require '../config/left-menu.php'; ?>
 
-  <div class="container">
-    <h2 class="title is-4">商品管理／商品登録</h2>
-    <hr>
-    <h3 class="subtitle is-5">基本情報</h3>
+<div class="column" style="padding: 2rem;">
 
-    <?php if (!empty($message)): ?>
-      <div class="notification is-info"><?= htmlspecialchars($message) ?></div>
-    <?php endif; ?>
+<h1 class="title is-4">商品管理／商品登録</h1>
+<h2 class="subtitle is-6">商品登録フォーム</h2>
 
-    <form action="" method="post" enctype="multipart/form-data">
-      <table class="table is-fullwidth">
-        <tr>
-          <td>商品名：</td>
-          <td><input class="input" type="text" name="product_name" placeholder="商品名を入力" required></td>
-        </tr>
-        <tr>
-          <td>商品画像：</td>
-          <td>
-            <label class="upload-box" for="imageInput">
-              ＋ファイルをアップロード
-              <input class="file-input" type="file" name="image" id="imageInput" accept="image/*" style="display:none;">
-              <img id="preview" alt="プレビュー">
-            </label>
-          </td>
-        </tr>
-        <tr>
-          <td>価格：</td>
-          <td><input class="input" type="number" name="price" min="0" placeholder="例：2000" required></td>
-        </tr>
-        <tr>
-          <td>在庫数：</td>
-          <td>
-            <div class="select is-fullwidth">
-              <select name="stock">
-                <?php for ($i = 1; $i <= 10; $i++): ?>
-                  <option value="<?= $i ?>"><?= $i ?></option>
-                <?php endfor; ?>
-              </select>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td>付属品：</td>
-          <td>
-            <div class="select is-fullwidth">
-              <select name="accessories">
-                <option value="本体のみ"> 本体のみ</option>
-                <option value="箱・付属品あり">箱・付属品あり</option>
-                <option value="付属品なし">付属品なし</option>
-              </select>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td>スペック：</td>
-          <td><textarea class="textarea" name="spec" rows="2" placeholder="例：64GB / SIMフリー"></textarea></td>
-        </tr>
-        <tr>
-          <td>状態：</td>
-          <td>
-            <div class="select is-fullwidth">
-              <select name="rank">
-                <option value="ランクA">ランクA</option>
-                <option value="ランクB">ランクB</option>
-                <option value="ランクC">ランクC</option>
-              </select>
-            </div>
-          </td>
-        </tr>
-      </table>
+<?php if ($message): ?>
+    <div class="notification <?= $message_class; ?>">
+        <?= htmlspecialchars($message); ?>
+    </div>
+<?php endif; ?>
 
-      <div class="has-text-centered" style="margin-top:30px;">
-        <button class="button is-info is-medium" type="submit">商品登録</button>
-      </div>
-    </form>
-   </div>
+<div class="box">
+
+<form action="" method="post" enctype="multipart/form-data">
+<table class="table is-fullwidth">
+
+<tr>
+    <td>商品名：</td>
+    <td><input class="input" type="text" name="product_name" required></td>
+</tr>
+
+<tr>
+    <td>商品画像：</td>
+    <td>
+        <img id="preview" src="" style="display:none; max-width:200px; border:1px solid #ccc;">
+        <input type="file" id="imageInput" name="image" accept="image/*">
+    </td>
+</tr>
+
+<tr>
+    <td>価格：</td>
+    <td><input class="input" type="number" name="price" min="0" required></td>
+</tr>
+
+<tr>
+    <td>在庫数：</td>
+    <td><input class="input" type="number" name="stock" min="0" required></td>
+</tr>
+
+<tr>
+<td>発送予定日：</td>
+<td>
+    <div class="select is-fullwidth">
+        <select name="shipping_id" required>
+            <option value="">選択してください</option>
+            <?php foreach ($shipping_list as $ship): ?>
+                <option value="<?= $ship['shipping_id']; ?>">
+                    <?= htmlspecialchars($ship['shipping_date']); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+</td>
+</tr>
+
+<tr>
+    <td>メーカー：</td>
+    <td><input class="input" type="text" name="maker" required></td>
+</tr>
+
+<tr>
+    <td>発売日：</td>
+    <td><input class="input" type="date" name="release_date"></td>
+</tr>
+
+<tr>
+    <td>商品説明：</td>
+    <td><textarea class="textarea" name="spec"></textarea></td>
+</tr>
+
+<tr>
+    <td>カテゴリ：</td>
+    <td>
+        <div class="select is-fullwidth">
+            <select name="category_id" required>
+                <?php foreach ($categories as $cat): ?>
+                    <option value="<?= $cat['category_id']; ?>">
+                        <?= htmlspecialchars($cat['category_name']); ?>
+                    </option>
+                <?php endforeach ?>
+            </select>
+        </div>
+    </td>
+</tr>
+
+<tr>
+    <td>CPU：</td>
+    <td><input class="input" type="text" name="cpu" required></td>
+</tr>
+
+<tr>
+    <td>メモリ：</td>
+    <td><input class="input" type="text" name="memory" required></td>
+</tr>
+
+<tr>
+    <td>SSD：</td>
+    <td><input class="input" type="text" name="ssd" required></td>
+</tr>
+
+<tr>
+    <td>ドライブ：</td>
+    <td><input class="input" type="text" name="drive" required></td>
+</tr>
+
+<tr>
+    <td>ディスプレイ：</td>
+    <td><input class="input" type="text" name="display" required></td>
+</tr>
+
+<tr>
+    <td>OS：</td>
+    <td><input class="input" type="text" name="os" required></td>
+</tr>
+
+<tr>
+<td>付属品：</td>
+<td>
+    <div class="select is-fullwidth">
+        <select name="accessories">
+            <option value="本体のみ">本体のみ</option>
+            <option value="箱・付属品あり">箱・付属品あり</option>
+            <option value="付属品なし">付属品なし</option>
+        </select>
+    </div>
+</td>
+</tr>
+
+<tr>
+<td>状態：</td>
+<td>
+    <div class="select is-fullwidth">
+        <select name="rank">
+            <option value="ランクA">ランクA</option>
+            <option value="ランクB">ランクB</option>
+            <option value="ランクC">ランクC</option>
+        </select>
+    </div>
+</td>
+</tr>
+
+</table>
+
+<div class="buttons mt-3">
+    <a href="K7-product_master.php" class="button is-light">商品一覧へ戻る</a>
+    <button class="button is-info is-medium" type="submit">商品登録</button>
 </div>
 
-
+</form>
+</div>
+</div>
+</div>
 
 <script>
-document.getElementById('imageInput').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  const preview = document.getElementById('preview');
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      preview.src = ev.target.result;
-      preview.style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-  } else {
-    preview.style.display = 'none';
-  }
+document.getElementById('imageInput').addEventListener('change', function(e){
+    const file = e.target.files[0];
+    const preview = document.getElementById('preview');
+    if(file){
+        const reader = new FileReader();
+        reader.onload = function(ev){
+            preview.src = ev.target.result;
+            preview.style.display='block';
+        };
+        reader.readAsDataURL(file);
+    }else{
+        preview.style.display='none';
+    }
 });
 </script>
+
 <?php require 'footer.php'; ?>
-<?php ob_end_flush(); ?>
-</body>
-</html>
