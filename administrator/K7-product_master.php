@@ -28,7 +28,8 @@ try {
             pm.admin_id,
             pm.product_id,
             pm.status_id,
-            pm.accessories,
+            pm.accessories_id,
+            a.accessories_name,      -- ← ここを追加
             pm.stock,
             pm.category_id,
             p.product_name,
@@ -41,6 +42,7 @@ try {
         INNER JOIN product p ON pm.product_id = p.product_id
         INNER JOIN status s ON pm.status_id = s.status_id
         LEFT JOIN shipping sh ON p.shipping_id = sh.shipping_id
+        LEFT JOIN accessories a ON pm.accessories_id = a.accessories_id
     ";
 
     $conditions = [];
@@ -198,7 +200,7 @@ try {
                       <p class="title is-6"><?= htmlspecialchars($p['product_name']); ?></p>
                       <p class="subtitle is-7 has-text-danger">¥<?= number_format($p['price']); ?> 円</p>
                       <p class="subtitle is-7">商品番号：<strong><?= htmlspecialchars($p['product_id']); ?></strong></p>
-                      <p>付属品：<?= htmlspecialchars($p['accessories'] ?: '―'); ?></p>
+                      <p>付属品：<?= htmlspecialchars($p['accessories_name'] ?: '―'); ?></p>
                       <p>カテゴリ：
                         <?php
                         $cat_name = '―';

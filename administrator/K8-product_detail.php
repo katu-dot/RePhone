@@ -11,39 +11,62 @@ try {
 
     // ▼ 削除処理
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
-      $delete_id = (int)$_POST['delete_id'];
-  
-      try {
-          $pdo->beginTransaction();
-  
-          $stmt = $pdo->prepare("DELETE FROM stock_management WHERE product_management_id = :id");
-          $stmt->execute([':id' => $delete_id]);
-  
-          $stmt = $pdo->prepare("SELECT product_id FROM product_management WHERE product_management_id = :id");
-          $stmt->execute([':id' => $delete_id]);
-          $product = $stmt->fetch(PDO::FETCH_ASSOC);
-          $product_id = $product['product_id'] ?? null;
-  
-          $stmt = $pdo->prepare("DELETE FROM product_management WHERE product_management_id = :id");
-          $stmt->execute([':id' => $delete_id]);
-  
-          if ($product_id) {
-              $stmt = $pdo->prepare("DELETE FROM product WHERE product_id = :pid");
-              $stmt->execute([':pid' => $product_id]);
-          }
-  
-          $pdo->commit();
-  
-          $message = urlencode('商品を削除しました。');
-          header("Location: K7-product_master.php?message={$message}");
-          exit;
-  
-      } catch (PDOException $e) {
-          $pdo->rollBack();
-          echo '<div class="notification is-danger">削除エラー: ' . htmlspecialchars($e->getMessage()) . '</div>';
-          exit;
-      }
-  }  
+        $delete_id = (int)$_POST['delete_id'];
+
+        try {
+            $pdo->beginTransaction();
+
+            // product_id 取得
+            $stmt = $pdo->prepare("SELECT product_id FROM product_management WHERE product_management_id = :id");
+            $stmt->execute([':id' => $delete_id]);
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+            $product_id = $product['product_id'] ?? null;
+
+            // ▼ 画像パス取得（削除用）
+            $image_path = '';
+            if ($product_id) {
+                $stmt = $pdo->prepare("SELECT image FROM product WHERE product_id = :pid");
+                $stmt->execute([':pid' => $product_id]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                $image_path = $row['image'] ?? '';
+            }
+
+            // stock_management 削除
+            $stmt = $pdo->prepare("DELETE FROM stock_management WHERE product_management_id = :id");
+            $stmt->execute([':id' => $delete_id]);
+
+            // product_management 削除
+            $stmt = $pdo->prepare("DELETE FROM product_management WHERE product_management_id = :id");
+            $stmt->execute([':id' => $delete_id]);
+
+            // product 削除
+            if ($product_id) {
+                $stmt = $pdo->prepare("DELETE FROM product WHERE product_id = :pid");
+                $stmt->execute([':pid' => $product_id]);
+            }
+
+            $pdo->commit();
+
+            // ▼ DB削除完了後、画像ファイル削除
+            if (!empty($image_path)) {
+                // uploads/xxx.jpg のような相対パスを絶対パスに変換
+                $delete_file = dirname(__DIR__) . '/' . ltrim($image_path, '/');
+
+                if (file_exists($delete_file)) {
+                    unlink($delete_file); // ← 実ファイル削除
+                }
+            }
+
+            $message = urlencode('商品を削除しました。');
+            header("Location: K7-product_master.php?message={$message}");
+            exit;
+
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            echo '<div class="notification is-danger">削除エラー: ' . htmlspecialchars($e->getMessage()) . '</div>';
+            exit;
+        }
+    }
 
     // ▼ URL確認
     if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
@@ -53,39 +76,40 @@ try {
 
     $product_management_id = (int)$_GET['id'];
 
-    // ▼ 商品情報取得（shipping_date 追加）
-    // ▼ 商品情報取得（shipping_date 取得版）
-$sql = "
-SELECT 
-    pm.product_management_id,
-    pm.admin_id,
-    pm.product_id,
-    pm.status_id,
-    pm.accessories,
-    pm.stock,
-    p.product_name,
-    p.product_description,
-    p.price,
-    p.image,
-    p.maker,
-    p.release_date,
-    p.cpu,
-    p.memory,
-    p.ssd,
-    p.drive,
-    p.display,
-    p.os,
-    p.shipping_id,
-    s2.shipping_date,     -- ★ shipping_date を取得
-    s.status_name,
-    c.category_name
-FROM product_management pm
-INNER JOIN product p ON pm.product_id = p.product_id
-INNER JOIN status s ON pm.status_id = s.status_id
-LEFT JOIN category_management c ON p.category_id = c.category_id
-LEFT JOIN shipping s2 ON p.shipping_id = s2.shipping_id   -- ★ shipping を JOIN
-WHERE pm.product_management_id = :product_management_id
-";
+    // ▼ 商品情報取得（shipping_date付き）
+    $sql = "
+        SELECT 
+            pm.product_management_id,
+            pm.admin_id,
+            pm.product_id,
+            pm.status_id,
+            pm.accessories_id,
+            a.accessories_name,
+            pm.stock,
+            p.product_name,
+            p.product_description,
+            p.price,
+            p.image,
+            p.maker,
+            p.release_date,
+            p.cpu,
+            p.memory,
+            p.ssd,
+            p.drive,
+            p.display,
+            p.os,
+            p.shipping_id,
+            s2.shipping_date,
+            s.status_name,
+            c.category_name
+        FROM product_management pm
+        INNER JOIN product p ON pm.product_id = p.product_id
+        INNER JOIN status s ON pm.status_id = s.status_id
+        LEFT JOIN category_management c ON p.category_id = c.category_id
+        LEFT JOIN shipping s2 ON p.shipping_id = s2.shipping_id
+        LEFT JOIN accessories a ON pm.accessories_id = a.accessories_id
+        WHERE pm.product_management_id = :product_management_id
+    ";
     $stmt = $pdo->prepare($sql);
     $stmt->bindValue(':product_management_id', $product_management_id, PDO::PARAM_INT);
     $stmt->execute();
@@ -175,7 +199,7 @@ require 'header.php';
             <tr><th>ドライブ</th><td><?= htmlspecialchars($product['drive'] ?: '―'); ?></td></tr>
             <tr><th>ディスプレイ</th><td><?= htmlspecialchars($product['display'] ?: '―'); ?></td></tr>
             <tr><th>OS</th><td><?= htmlspecialchars($product['os'] ?: '―'); ?></td></tr>
-            <tr><th>付属品</th><td><?= htmlspecialchars($product['accessories'] ?: '―'); ?></td></tr>
+            <tr><th>付属品</th><td><?= htmlspecialchars($product['accessories_name'] ?: '―'); ?></td></tr>
             <tr><th>状態区分</th><td><?= htmlspecialchars($product['status_name']); ?></td></tr>
           </tbody>
         </table>

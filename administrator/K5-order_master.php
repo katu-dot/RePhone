@@ -24,7 +24,6 @@ $filter       = $_GET['filter'] ?? '';
 $like_query = '%' . $search_query . '%';
 
 try {
-    // SQLベース
     $sql = "
         SELECT 
             OM.*, 
@@ -33,7 +32,7 @@ try {
             P.product_name, 
             P.price,
             P.product_id,
-            PM.accessories,
+            A.accessories_name,
             S.status_name,
             PM.category_id,
             OM.cancelled_at,
@@ -50,10 +49,12 @@ try {
             product P ON PM.product_id = P.product_id
         LEFT JOIN
             status S ON PM.status_id = S.status_id
+        LEFT JOIN
+            accessories A ON PM.accessories_id = A.accessories_id
         WHERE 
             (CM.name LIKE :q_name OR 
-             P.product_name LIKE :q_product OR  
-             OM.order_management_id LIKE :q_orderid)
+            P.product_name LIKE :q_product OR  
+            OM.order_management_id LIKE :q_orderid)
     ";
 
     $params = [
@@ -62,47 +63,40 @@ try {
         ':q_orderid' => $like_query
     ];
 
-    // ▼ カテゴリ絞り込み（メール送信状況もここに含める）
+    // ▼ カテゴリ絞り込み
     if ($category !== 'all') {
-      switch ($category) {
-          case 'pc':
-              $sql .= " AND PM.category_id = 2";
-              break;
-          case 'smartphone':
-              $sql .= " AND PM.category_id = 1";
-              break;
-          case 'paid':
-              $sql .= " AND OM.payment_confirmation = '入金済み'";
-              break;
-          case 'pending':
-              $sql .= " AND OM.payment_confirmation = '未入金'";
-              break;
-          case 'email_sent':
-              $sql .= " AND OM.email_sent = 1 
-                        AND OM.cancelled_at IS NULL";
-              break;
-          case 'email_pending':
-              $sql .= " AND OM.email_sent = 0
-                        AND OM.cancelled_at IS NULL";
-              break;
-            
-      }
-  }
+        switch ($category) {
+            case 'pc':
+                $sql .= " AND PM.category_id = 2";
+                break;
+            case 'smartphone':
+                $sql .= " AND PM.category_id = 1";
+                break;
+            case 'paid':
+                $sql .= " AND OM.payment_confirmation = '入金済み'";
+                break;
+            case 'pending':
+                $sql .= " AND OM.payment_confirmation = '未入金'";
+                break;
+            case 'email_sent':
+                $sql .= " AND OM.email_sent = 1";
+                break;
+            case 'email_pending':
+                $sql .= " AND OM.email_sent = 0";
+                break;
+        }
+    }
 
-  // ▼ キャンセル済みのみ表示
-  if ($filter === 'cancelled') {
-      $sql .= " AND OM.cancelled_at IS NOT NULL ";
-  } else {
-      // 通常はキャンセル済み除外
-      $sql .= " AND OM.cancelled_at IS NULL ";
-  }
+    // ▼ キャンセル済みのみ表示
+    if ($filter === 'cancelled') {
+        $sql .= " AND OM.cancelled_at IS NOT NULL ";
+    }
 
-  // ▼ 7年以上前のキャンセル注文は非表示
-  // ※ 上で cancelled_at IS NULL としたので安全に発動
-  $sql .= " AND (OM.cancelled_at IS NULL OR OM.cancelled_at > DATE_SUB(NOW(), INTERVAL 7 YEAR)) ";
+    // ※ 通常はキャンセルも含めて全件表示したいので以下は削除
+    // $sql .= " AND OM.cancelled_at IS NULL ";
 
-  // ▼ GROUP BY
-  $sql .= " GROUP BY OM.order_management_id";
+    // ▼ GROUP BY
+    $sql .= " GROUP BY OM.order_management_id";
 
     // ▼ 並び替え
     switch ($order) {
@@ -127,7 +121,6 @@ try {
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $result_count = count($orders);
 
-    // 総注文数
     $total_orders = $pdo->query("SELECT COUNT(*) FROM order_management")->fetchColumn();
 
 } catch (PDOException $e) {
@@ -166,14 +159,12 @@ try {
           <button type="submit" class="button is-info">検索</button>
         </div>
 
-        <!-- ▼ 検索結果クリアボタン -->
         <?php if ($search_query !== '' || $category !== 'all' || $order !== 'default' || $filter !== ''): ?>
         <div class="control">
           <a href="K5-order_master.php" class="button is-light">検索結果をクリア</a>
         </div>
         <?php endif; ?>
 
-        <!-- カテゴリ -->
         <div class="control">
           <div class="select">
             <select name="category" onchange="this.form.submit()">
@@ -188,7 +179,6 @@ try {
           </div>
         </div>
 
-        <!-- 並び替え -->
         <div class="control">
           <div class="select">
             <select name="order" onchange="this.form.submit()">
@@ -201,7 +191,6 @@ try {
           </div>
         </div>
 
-        <!-- キャンセル済み絞り込みボタン -->
         <div class="control">
           <?php
             $query_params = [];
@@ -216,7 +205,6 @@ try {
       </div>
     </form>
 
-    <!-- 件数表示 -->
     <?php if ($filter === 'cancelled' && $result_count === 0): ?>
         <div class="notification is-warning">キャンセル済みの注文がありません。</div>
     <?php elseif ($search_query !== '' && $result_count === 0): ?>
@@ -225,7 +213,6 @@ try {
         <h3 class="subtitle is-5 mt-5">検索結果：<?= $result_count ?>件の注文が見つかりました</h3>
     <?php endif; ?>
 
-    <!-- 注文カード一覧 -->
     <div class="columns is-multiline">
       <?php if (!empty($orders)): ?>
         <?php foreach ($orders as $order): ?>
@@ -233,7 +220,6 @@ try {
             <div class="card">
               <div class="card-content">
 
-                <!-- ★ キャンセル済み表示 -->
                 <?php if (!empty($order['cancelled_at'])): ?>
                   <p class="has-text-danger" style="font-weight:bold;">キャンセル済み</p>
                 <?php endif; ?>
@@ -242,7 +228,7 @@ try {
                   <p class="title is-6"><?= htmlspecialchars($order['product_name'] ?? '商品情報なし'); ?></p>
                   <p class="subtitle is-7 has-text-danger">¥<?= number_format($order['price'] ?? 0); ?> 円</p>
                   <p class="subtitle is-7">商品番号：<strong><?= htmlspecialchars($order['product_id'] ?? '―'); ?></strong></p>
-                  <p>付属品：<?= htmlspecialchars($order['accessories'] ?? '―'); ?></p>
+                  <p>付属品：<?= htmlspecialchars($order['accessories_name'] ?? '―'); ?></p>
                   <p>状態：<?= htmlspecialchars($order['status_name'] ?? '―'); ?></p>
                   <hr style="margin: 10px 0;">
                   <p>入金状況：
