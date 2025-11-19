@@ -158,6 +158,14 @@ require './header.php';
 ?>
 
 <!-- メッセージ表示 -->
+<?php if (!empty($_GET['registered'])): ?>
+    <div class="notification is-success mt-4">注文の登録が完了しました。</div>
+<?php endif; ?>
+
+<?php if (!empty($_GET['updated'])): ?>
+    <div class="notification is-success mt-4">編集が完了しました。</div>
+<?php endif; ?>
+
 <?php if (!empty($order['cancelled_at'])): ?>
     <div class="notification is-danger mt-4">この注文は <strong>キャンセル済み</strong> です。</div>
 <?php endif; ?>
