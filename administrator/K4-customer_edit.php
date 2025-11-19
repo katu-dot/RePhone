@@ -5,14 +5,12 @@ try {
     $pdo = new PDO($connect, USER, PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // URLパラメータ確認
     if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
         echo '<div class="notification is-danger">不正なアクセスです。</div>';
         exit;
     }
     $customer_management_id = (int)$_GET['id'];
 
-    // 顧客情報取得
     $stmt = $pdo->prepare("SELECT * FROM customer_management WHERE customer_management_id = :id");
     $stmt->bindValue(':id', $customer_management_id, PDO::PARAM_INT);
     $stmt->execute();
@@ -23,7 +21,6 @@ try {
         exit;
     }
 
-    // 編集処理
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = $_POST['name'] ?? '';
         $email = $_POST['email'] ?? '';
@@ -45,7 +42,6 @@ try {
             ':id' => $customer_management_id
         ]);
 
-        // 編集完了後、K3にリダイレクト
         header("Location: K3-customer_master.php?message=顧客情報の編集が完了しました");
         exit;
     }
@@ -90,14 +86,19 @@ require 'header.php';
         <div class="field">
             <label class="label">郵便番号</label>
             <div class="control">
-                <input class="input" type="text" name="postal_code" value="<?= htmlspecialchars($customer['postal_code']) ?>">
+                <!-- ▼ ここだけ追記（id と onkeyup） -->
+                <input class="input" type="text" id="postal_code" name="postal_code"
+                       value="<?= htmlspecialchars($customer['postal_code']) ?>"
+                       onkeyup="fetchAddress()">
             </div>
         </div>
 
         <div class="field">
             <label class="label">住所</label>
             <div class="control">
-                <input class="input" type="text" name="address" value="<?= htmlspecialchars($customer['address']) ?>">
+                <!-- ▼ ここだけ追記（id を追加） -->
+                <input class="input" type="text" id="address" name="address"
+                       value="<?= htmlspecialchars($customer['address']) ?>">
             </div>
         </div>
 
@@ -112,5 +113,23 @@ require 'header.php';
     </form>
 </div>
 </div>
+
+<!-- ▼ 住所自動補完スクリプト（ZipCloud） -->
+<script>
+function fetchAddress() {
+    const postal = document.getElementById("postal_code").value.replace(/[^0-9]/g, "");
+    if (postal.length !== 7) return;
+
+    fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + postal)
+        .then(res => res.json())
+        .then(data => {
+            if (data.results) {
+                const r = data.results[0];
+                document.getElementById("address").value =
+                    r.address1 + r.address2 + r.address3;
+            }
+        });
+}
+</script>
 
 <?php require 'footer.php'; ?>

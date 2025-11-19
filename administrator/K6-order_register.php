@@ -5,7 +5,6 @@ error_reporting(E_ALL);
 // --- ▲ デバッグ用 ▲ ---
 
 session_start();
-
 require '../config/db-connect.php';
 
 // --- ▼ DB接続 ▼ ---
@@ -17,35 +16,54 @@ try {
 }
 
 // -----------------------------------------------------------
-// ▼ 検索キーワード取得（GET）
-// -----------------------------------------------------------
-$keyword_customer = $_GET['keyword_customer'] ?? '';
-$keyword_product  = $_GET['keyword_product'] ?? '';
-
-// -----------------------------------------------------------
 // ▼ 注文登録 POST 処理
 // -----------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $customer_id = intval($_POST['customer_id']);
+    // 顧客情報
+    $name           = $_POST['customer_name'] ?? '';
+    $phone          = $_POST['phone'] ?? '';
+    $email          = $_POST['email'] ?? '';
+    $postal_code    = $_POST['postal_code'] ?? '';
+    $address        = $_POST['address'] ?? '';
+
+    // 商品情報
     $product_management_id = intval($_POST['product_management_id']);
-    $delivery_date = $_POST['delivery_date'] ?? null;
-    $delivery_time = $_POST['delivery_time'] ?? null;
+
+    // 配送情報
+    $delivery_date  = $_POST['delivery_date'] ?? null;
+    $delivery_time  = $_POST['delivery_time'] ?? null;
+
+    // 支払い情報
     $payment_confirmation = $_POST['payment_confirmation'] ?? '未入金';
-    $payment_method = $_POST['payment_method'] ?? '未設定';
+    $payment_method       = $_POST['payment_method'] ?? '未設定';
 
     try {
         $pdo->beginTransaction();
 
+        // ▼ 新規顧客を customer_management に登録
+        $stmt_cust = $pdo->prepare("
+            INSERT INTO customer_management
+            (name, phone, email, postal_code, address)
+            VALUES (:name, :phone, :email, :postal_code, :address)
+        ");
+        $stmt_cust->execute([
+            ':name'        => $name,
+            ':phone'       => $phone,
+            ':email'       => $email,
+            ':postal_code' => $postal_code,
+            ':address'     => $address
+        ]);
+        $customer_management_id = $pdo->lastInsertId();
+
         // ▼ order_management 登録
-        $sql1 = "
+        $stmt1 = $pdo->prepare("
             INSERT INTO order_management
             (customer_management_id, order_date, payment_confirmation, delivery_date, delivery_time, payment_method)
             VALUES (:customer_id, NOW(), :payment_confirmation, :delivery_date, :delivery_time, :payment_method)
-        ";
-        $stmt1 = $pdo->prepare($sql1);
+        ");
         $stmt1->execute([
-            ':customer_id'          => $customer_id,
+            ':customer_id'          => $customer_management_id,
             ':payment_confirmation' => $payment_confirmation,
             ':delivery_date'        => $delivery_date,
             ':delivery_time'        => $delivery_time,
@@ -54,12 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $order_management_id = $pdo->lastInsertId();
 
         // ▼ order_detail_management 登録
-        $sql2 = "
+        $stmt2 = $pdo->prepare("
             INSERT INTO order_detail_management
             (order_management_id, product_management_id)
             VALUES (:order_management_id, :product_management_id)
-        ";
-        $stmt2 = $pdo->prepare($sql2);
+        ");
         $stmt2->execute([
             ':order_management_id'  => $order_management_id,
             ':product_management_id'=> $product_management_id
@@ -67,7 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->commit();
 
-        header("Location: K6-order_detail.php?id={$order_management_id}&message=registered");
+        // ▼ ここでリダイレクトして「登録完了メッセージ」を表示
+        header("Location: K6-order_detail.php?id={$order_management_id}&registered=1");
         exit;
 
     } catch (PDOException $e) {
@@ -77,40 +95,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // -----------------------------------------------------------
-// ▼ 顧客一覧（検索対応）
+// ▼ 商品一覧取得（検索対応）
 // -----------------------------------------------------------
+$keyword_product = $_GET['keyword_product'] ?? '';
 try {
-    $sqlCustomer = "
-        SELECT customer_management_id, name, email
-        FROM customer_management
-        WHERE name LIKE :keyword OR email LIKE :keyword
-        ORDER BY name ASC
-    ";
-    $stmt = $pdo->prepare($sqlCustomer);
-    $stmt->execute([':keyword' => "%{$keyword_customer}%"]);
-    $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    die("<div class='notification is-danger'>顧客取得エラー: " . htmlspecialchars($e->getMessage()) . "</div>");
-}
-
-// -----------------------------------------------------------
-// ▼ 商品一覧（検索対応）
-// -----------------------------------------------------------
-try {
-    $sqlProduct = "
-    SELECT 
-        PM.product_management_id,
-        PM.stock,
-        P.product_name,
-        P.price,
-        S.shipping_date
-    FROM product_management PM
-    INNER JOIN product P ON PM.product_id = P.product_id
-    LEFT JOIN shipping S ON PM.shipping_id = S.shipping_id
-    WHERE P.product_name LIKE :keyword
-    ORDER BY P.product_name ASC
-";
-    $stmt = $pdo->prepare($sqlProduct);
+    $stmt = $pdo->prepare("
+        SELECT 
+            PM.product_management_id,
+            PM.stock,
+            P.product_name,
+            P.price,
+            S.shipping_date
+        FROM product_management PM
+        INNER JOIN product P ON PM.product_id = P.product_id
+        LEFT JOIN shipping S ON PM.shipping_id = S.shipping_id
+        WHERE P.product_name LIKE :keyword
+        ORDER BY P.product_name ASC
+    ");
     $stmt->execute([':keyword' => "%{$keyword_product}%"]);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
@@ -125,27 +126,14 @@ require './header.php';
 <?php require '../config/left-menu.php'; ?>
 
 <div class="column" style="padding: 2rem;">
-
 <h1 class="title is-4">注文管理／注文登録</h1>
 
-<div class="box">
+<!-- ▼ 登録完了メッセージ表示 -->
+<?php if (!empty($_GET['registered'])): ?>
+    <div class="notification is-success mt-4">注文の登録が完了しました。</div>
+<?php endif; ?>
 
-<!-- ▼ 顧客検索フォーム -->
-<form method="get" class="mb-4">
-    <label class="label">顧客検索</label>
-    <div class="field has-addons">
-        <div class="control is-expanded">
-            <input class="input" 
-                   type="text" 
-                   name="keyword_customer" 
-                   value="<?= htmlspecialchars($keyword_customer); ?>"
-                   placeholder="顧客名・メールで検索">
-        </div>
-        <div class="control">
-            <button class="button is-info">検索</button>
-        </div>
-    </div>
-</form>
+<div class="box">
 
 <!-- ▼ 商品検索フォーム -->
 <form method="get" class="mb-4">
@@ -170,18 +158,45 @@ require './header.php';
 <table class="table is-fullwidth">
 
 <tr>
-    <th>顧客選択</th>
+    <th>顧客名</th>
+    <td><input class="input" type="text" name="customer_name" placeholder="氏名を入力" required></td>
+</tr>
+
+<tr>
+    <th>電話番号</th>
+    <td><input class="input" type="text" name="phone" placeholder="電話番号を入力" required></td>
+</tr>
+
+<tr>
+    <th>メールアドレス</th>
+    <td><input class="input" type="email" name="email" placeholder="メールアドレスを入力" required></td>
+</tr>
+
+<tr>
+    <th>郵便番号</th>
     <td>
-        <div class="select is-fullwidth">
-            <select name="customer_id" required>
-                <option value="">選択してください</option>
-                <?php foreach ($customers as $c): ?>
-                    <option value="<?= $c['customer_management_id']; ?>">
-                        <?= htmlspecialchars($c['name']); ?>（<?= htmlspecialchars($c['email']); ?>）
-                    </option>
-                <?php endforeach ?>
-            </select>
-        </div>
+        <input 
+            class="input" 
+            type="text" 
+            name="postal_code" 
+            id="postal_code"
+            placeholder="郵便番号を入力"
+            onkeyup="fetchAddress()"
+        >
+    </td>
+</tr>
+
+<tr>
+    <th>住所</th>
+    <td>
+        <input 
+            class="input"
+            type="textarea"
+            name="address"
+            id="address"
+            placeholder="住所を入力"
+            required
+        >
     </td>
 </tr>
 
@@ -194,15 +209,13 @@ require './header.php';
                 <?php foreach ($products as $p): ?>
                     <?php 
                         $stock = (int)($p['stock'] ?? 0);
-                        $display_name = htmlspecialchars($p['product_name']) . " (".number_format($p['price'])."円) | " . ($p['shipping_date'] ?? '発送日未設定');
-                        if ($stock > 0) {
-                            $display_name .= " | 在庫数: {$stock}個";
-                        } else {
-                            $display_name .= " | 在庫がありません";
-                        }
+                        $label = htmlspecialchars($p['product_name']) .
+                                 " (" . number_format($p['price']) . "円)" .
+                                 " | " . ($p['shipping_date'] ?? '発送日未設定') .
+                                 " | 在庫: {$stock}";
                     ?>
                     <option value="<?= $p['product_management_id']; ?>" <?= $stock === 0 ? 'disabled style="color:red;"' : ''; ?>>
-                        <?= $display_name; ?>
+                        <?= $label; ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -273,5 +286,24 @@ require './header.php';
 
 </div>
 </div>
+
+<!-- ▼ 住所自動補完スクリプト（ZipCloud） -->
+<script>
+function fetchAddress() {
+    const postal = document.getElementById("postal_code").value.replace(/[^0-9]/g, "");
+    if (postal.length !== 7) return;
+
+    fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + postal)
+        .then(res => res.json())
+        .then(data => {
+            if (data.results) {
+                const r = data.results[0];
+                document.getElementById("address").value =
+                    r.address1 + r.address2 + r.address3;
+            }
+        })
+        .catch(err => console.log(err));
+}
+</script>
 
 <?php require './footer.php'; ?>

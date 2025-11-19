@@ -50,7 +50,7 @@ try {
     $sql_main = "
         SELECT 
             p.product_id, p.product_name, p.price, p.image,
-            PM.accessories, S.status_name
+            PM.accessories_name, S.status_name
         FROM product p 
         INNER JOIN product_management PM ON p.product_id = PM.product_id
         INNER JOIN status S ON PM.status_id = S.status_id
@@ -113,8 +113,8 @@ try {
                                     <p class="title is-6" style="min-height: 3em;"><?php echo htmlspecialchars($product['product_name']); ?></p>
                                     <p class="subtitle is-6 has-text-danger">¥<?php echo number_format($product['price']); ?></p>
                                     
-                                    <?php if (isset($product['accessories'])): ?>
-                                        <p class="is-size-7 has-text-grey">付属品: <?php echo htmlspecialchars($product['accessories']); ?></p>
+                                    <?php if (isset($product['accessories_name'])): ?>
+                                        <p class="is-size-7 has-text-grey">付属品: <?php echo htmlspecialchars($product['accessories_name']); ?></p>
                                     <?php endif; ?>
                                     <?php if (isset($product['status_name'])): ?>
                                         <p class="is-size-7 has-text-grey">状態: <?php echo htmlspecialchars($product['status_name']); ?></p>

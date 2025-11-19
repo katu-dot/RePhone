@@ -34,7 +34,7 @@ try {
             pm.admin_id,
             pm.product_id,
             pm.status_id,
-            pm.accessories,
+            pm.accessories_id,
             pm.stock,
             pm.category_id,
 
@@ -53,12 +53,14 @@ try {
             p.shipping_id,
 
             s.status_name,
-            sh.shipping_date
+            sh.shipping_date,
+            a.accessories_name
 
         FROM product_management pm
         INNER JOIN product p ON pm.product_id = p.product_id
         INNER JOIN status s ON pm.status_id = s.status_id
         LEFT JOIN shipping sh ON p.shipping_id = sh.shipping_id
+        LEFT JOIN accessories a ON pm.accessories_id = a.accessories_id
         WHERE pm.product_management_id = :id
     ";
     $stmt = $pdo->prepare($sql);
@@ -77,6 +79,10 @@ try {
     // ▼ shipping 一覧取得
     $shipStmt = $pdo->query("SELECT shipping_id, shipping_date FROM shipping ORDER BY shipping_id ASC");
     $shipping_list = $shipStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // ▼ accessories 一覧取得
+    $accStmt = $pdo->query("SELECT accessories_id, accessories_name FROM accessories ORDER BY accessories_id ASC");
+    $accessories_list = $accStmt->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
     echo "<div class='notification is-danger'>データ取得エラー: " . htmlspecialchars($e->getMessage()) . "</div>";
@@ -99,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $price = $_POST['price'] ?? 0;
     $stock = $_POST['stock'] ?? 0;
-    $accessories = $_POST['accessories'] ?? '';
+    $accessories_id = $_POST['accessories_id'] ?? 1;
     $spec = $_POST['spec'] ?? '';
     $rank = $_POST['rank'] ?? '';
     $category_id = $_POST['category_id'] ?? null;
@@ -174,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql2 = "
                 UPDATE product_management 
                 SET stock = :stock,
-                    accessories = :accessories,
+                    accessories_id = :accessories_id,
                     status_id = :status_id,
                     category_id = :category_id
                 WHERE product_management_id = :pmid
@@ -182,7 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt2 = $pdo->prepare($sql2);
             $stmt2->execute([
                 ':stock' => $stock,
-                ':accessories' => $accessories,
+                ':accessories_id' => $accessories_id,
                 ':status_id' => $status_id,
                 ':category_id' => $category_id,
                 ':pmid' => $product_management_id
@@ -254,7 +260,7 @@ require 'header.php';
                     <td><input type="number" class="input" name="stock" value="<?= htmlspecialchars($product['stock']); ?>" min="0" required></td>
                 </tr>
 
-                <!-- 発送予定日（shipping_date を表示） -->
+                <!-- 発送予定日 -->
                 <tr>
                     <th>発送予定日</th>
                     <td>
@@ -262,8 +268,7 @@ require 'header.php';
                             <select name="shipping_id" required>
                                 <option value="">選択してください</option>
                                 <?php foreach ($shipping_list as $ship): ?>
-                                    <option value="<?= $ship['shipping_id']; ?>"
-                                        <?= $ship['shipping_id'] == $product['shipping_id'] ? 'selected' : ''; ?>>
+                                    <option value="<?= $ship['shipping_id']; ?>" <?= $ship['shipping_id'] == $product['shipping_id'] ? 'selected' : ''; ?>>
                                         <?= htmlspecialchars($ship['shipping_date']); ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -315,19 +320,28 @@ require 'header.php';
                 <!-- メモリ -->
                 <tr>
                     <th>メモリ</th>
-                    <td><input type="text" class="input" name="memory" value="<?= htmlspecialchars($product['memory']); ?>"></td>
+                    <td>
+                        <input type="text" class="input" name="memory"
+                            value="<?= htmlspecialchars($product['memory'] !== '' ? $product['memory'] : '―'); ?>">
+                    </td>
                 </tr>
 
                 <!-- SSD -->
                 <tr>
                     <th>SSD</th>
-                    <td><input type="text" class="input" name="ssd" value="<?= htmlspecialchars($product['ssd']); ?>"></td>
+                    <td>
+                        <input type="text" class="input" name="ssd"
+                            value="<?= htmlspecialchars($product['ssd'] !== '' ? $product['ssd'] : '―'); ?>">
+                    </td>
                 </tr>
 
                 <!-- ドライブ -->
                 <tr>
                     <th>ドライブ</th>
-                    <td><input type="text" class="input" name="drive" value="<?= htmlspecialchars($product['drive']); ?>"></td>
+                    <td>
+                        <input type="text" class="input" name="drive"
+                            value="<?= htmlspecialchars($product['drive'] !== '' ? $product['drive'] : '―'); ?>">
+                    </td>
                 </tr>
 
                 <!-- ディスプレイ -->
@@ -347,10 +361,12 @@ require 'header.php';
                     <th>付属品</th>
                     <td>
                         <div class="select is-fullwidth">
-                            <select name="accessories">
-                                <option value="本体のみ" <?= $product['accessories'] === '本体のみ' ? 'selected' : ''; ?>>本体のみ</option>
-                                <option value="箱・付属品あり" <?= $product['accessories'] === '箱・付属品あり' ? 'selected' : ''; ?>>箱・付属品あり</option>
-                                <option value="付属品なし" <?= $product['accessories'] === '付属品なし' ? 'selected' : ''; ?>>付属品なし</option>
+                            <select name="accessories_id" required>
+                                <?php foreach ($accessories_list as $acc): ?>
+                                    <option value="<?= $acc['accessories_id']; ?>" <?= $acc['accessories_id'] == $product['accessories_id'] ? 'selected' : ''; ?>>
+                                        <?= htmlspecialchars($acc['accessories_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                     </td>
@@ -361,7 +377,7 @@ require 'header.php';
                     <th>状態</th>
                     <td>
                         <div class="select is-fullwidth">
-                            <select name="rank">
+                            <select name="rank" required>
                                 <option value="ランクA" <?= $product['status_name'] === 'ランクA' ? 'selected' : ''; ?>>ランクA</option>
                                 <option value="ランクB" <?= $product['status_name'] === 'ランクB' ? 'selected' : ''; ?>>ランクB</option>
                                 <option value="ランクC" <?= $product['status_name'] === 'ランクC' ? 'selected' : ''; ?>>ランクC</option>

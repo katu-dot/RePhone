@@ -24,7 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $address = $_POST['address'] ?? '';
     $registration_date = date('Y-m-d H:i:s'); // 登録日時
 
-    // 必須チェック
     if ($name && $email && $phone && $postal_code && $address) {
         try {
             $stmt = $pdo->prepare("
@@ -43,8 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             $customer_id = $pdo->lastInsertId();
-
-            // 登録完了後、詳細ページへリダイレクト
             header("Location: K4-customer_detail.php?id={$customer_id}&message=registered");
             exit;
 
@@ -98,14 +95,18 @@ require 'header.php';
             <div class="field">
                 <label class="label">郵便番号</label>
                 <div class="control">
-                    <input class="input" type="text" name="postal_code" placeholder="郵便番号を入力" required>
+                    <!-- ▼ 住所自動補完のため id と onkeyup を追加 -->
+                    <input class="input" type="text" id="postal_code" name="postal_code"
+                           placeholder="郵便番号を入力" onkeyup="fetchAddress()" required>
                 </div>
             </div>
 
             <div class="field">
                 <label class="label">住所</label>
                 <div class="control">
-                    <textarea class="textarea" name="address" rows="2" placeholder="住所を入力" required></textarea>
+                    <!-- ▼ 自動入力させるため id を付与 -->
+                    <textarea class="textarea" id="address" name="address" rows="2"
+                              placeholder="住所を入力" required></textarea>
                 </div>
             </div>
         </div>
@@ -117,5 +118,23 @@ require 'header.php';
     </form>
 </div>
 </div>
+
+<!-- ▼ 住所自動補完スクリプト（ZipCloud） -->
+<script>
+function fetchAddress() {
+    const postal = document.getElementById("postal_code").value.replace(/[^0-9]/g, "");
+    if (postal.length !== 7) return;
+
+    fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + postal)
+        .then(res => res.json())
+        .then(data => {
+            if (data.results) {
+                const r = data.results[0];
+                document.getElementById("address").value =
+                    r.address1 + r.address2 + r.address3;
+            }
+        });
+}
+</script>
 
 <?php require 'footer.php'; ?>
