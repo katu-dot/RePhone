@@ -191,10 +191,20 @@ if ($total_price <= 0) {
                 </div>
             </div>
  
+            <?php
+            // ログイン状態によって「ログインして購入」ボタンの遷移先を動的に変更
+            if (isset($_SESSION['user_id'])) {
+                // ログイン済みの場合: 購入確認ページへ
+                $login_purchase_url = 'G6-order_confirm.php'; // G6は未作成のファイル
+            } else {
+                // 未ログインの場合: ログインページへ遷移。戻り先として現在のURLをセッションに保存
+                $_SESSION['return_to'] = 'G4-cart.php';
+                $login_purchase_url = 'L1-login.php';
+            }
+            ?>
             <div class="buttons is-centered are-medium mt-5">
-                <a href="L1-login.php" class="button is-danger" style="width: 45%;">
-                    ログインして<br>購入
-                </a>
+                <a href="<?= $login_purchase_url ?>" class="button is-danger" style="width: 45%;">
+                    ログインして<br>購入</a>
                 <a href="G5-order_input.php" class="button is-danger is-light" style="width: 45%; background-color: #ff4b5c; color: white;">
                     通常購入
                 </a>
@@ -244,4 +254,3 @@ document.addEventListener("DOMContentLoaded", function() {
 <?php
 require './footer.php';
 ?>
-
