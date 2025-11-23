@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = $_POST['email'] ?? '';
     $phone = $_POST['phone'] ?? '';
     $postal_code = $_POST['postal_code'] ?? '';
+    $street_address = $_POST['street_address'] ?? ''; // ★追加
     $address = $_POST['address'] ?? '';
     $registration_date = date('Y-m-d H:i:s'); // 登録日時
 
@@ -28,15 +29,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare("
                 INSERT INTO customer_management 
-                    (name, email, phone, postal_code, address, registration_date)
+                    (name, email, phone, postal_code, street_address, address, registration_date)
                 VALUES
-                    (:name, :email, :phone, :postal_code, :address, :registration_date)
+                    (:name, :email, :phone, :postal_code, :street_address, :address, :registration_date)
             ");
             $stmt->execute([
                 ':name' => $name,
                 ':email' => $email,
                 ':phone' => $phone,
                 ':postal_code' => $postal_code,
+                ':street_address' => $street_address, // ★追加
                 ':address' => $address,
                 ':registration_date' => $registration_date
             ]);
@@ -81,7 +83,7 @@ require 'header.php';
             <div class="field">
                 <label class="label">メールアドレス</label>
                 <div class="control">
-                    <input class="input" type="email" name="email" placeholder="メールアドレスを入力" required>
+                    <input class="input" type="email" name="email" placeholder="メールアドレスを入力">
                 </div>
             </div>
 
@@ -95,7 +97,6 @@ require 'header.php';
             <div class="field">
                 <label class="label">郵便番号</label>
                 <div class="control">
-                    <!-- ▼ 住所自動補完のため id と onkeyup を追加 -->
                     <input class="input" type="text" id="postal_code" name="postal_code"
                            placeholder="郵便番号を入力" onkeyup="fetchAddress()" required>
                 </div>
@@ -104,10 +105,18 @@ require 'header.php';
             <div class="field">
                 <label class="label">住所</label>
                 <div class="control">
-                    <!-- ▼ 自動入力させるため id を付与 -->
                     <textarea class="textarea" id="address" name="address" rows="2"
                               placeholder="住所を入力" required></textarea>
                 </div>
+            </div>
+
+            <!-- 番地 -->
+            <div class="field">
+                    <label class="label">番地</label>
+                    <div class="control">
+                        <input class="input" type="text" name="street_address"
+                            placeholder="◯丁目◯番◯号 など" >
+                    </div>
             </div>
         </div>
 
@@ -119,7 +128,6 @@ require 'header.php';
 </div>
 </div>
 
-<!-- ▼ 住所自動補完スクリプト（ZipCloud） -->
 <script>
 function fetchAddress() {
     const postal = document.getElementById("postal_code").value.replace(/[^0-9]/g, "");

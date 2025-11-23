@@ -7,6 +7,7 @@ session_start();
 require '../config/db-connect.php';
 require 'header.php';
 
+// --- DB接続 ---
 try {
     $pdo = new PDO($connect, USER, PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -26,10 +27,10 @@ $like_query = '%' . $search_query . '%';
 try {
     $sql = "
         SELECT 
-            OM.*, 
+            OM.*,
             CM.name AS customer_name,
             CM.email AS customer_email,
-            P.product_name, 
+            P.product_name,
             P.price,
             P.product_id,
             A.accessories_name,
@@ -87,15 +88,12 @@ try {
         }
     }
 
-    // ▼ キャンセル済みのみ表示
+    // ▼ キャンセル済みのみ表示（注文全体のキャンセル）
     if ($filter === 'cancelled') {
-        $sql .= " AND OM.cancelled_at IS NOT NULL ";
+        $sql .= " AND OM.cancelled_at IS NOT NULL";
     }
 
-    // ※ 通常はキャンセルも含めて全件表示したいので以下は削除
-    // $sql .= " AND OM.cancelled_at IS NULL ";
-
-    // ▼ GROUP BY
+    // ▼ GROUP BY 注文ごと
     $sql .= " GROUP BY OM.order_management_id";
 
     // ▼ 並び替え
@@ -107,10 +105,10 @@ try {
             $sql .= " ORDER BY P.price DESC";
             break;
         case 'rank_asc':
-            $sql .= " ORDER BY PM.status_id ASC";
+            $sql .= " ORDER BY S.status_id ASC";
             break;
         case 'rank_desc':
-            $sql .= " ORDER BY PM.status_id DESC";
+            $sql .= " ORDER BY S.status_id DESC";
             break;
         default:
             $sql .= " ORDER BY OM.order_date DESC";
@@ -118,7 +116,29 @@ try {
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $raw_orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // ▼ 注文ごとに商品情報をまとめる
+    $orders = [];
+    foreach ($raw_orders as $row) {
+        $oid = $row['order_management_id'];
+        if (!isset($orders[$oid])) {
+            $orders[$oid] = $row;
+            $orders[$oid]['products'] = [];
+        }
+        if (!empty($row['product_id'])) {
+            $orders[$oid]['products'][] = [
+                'name' => $row['product_name'],
+                'price' => $row['price'],
+                'product_id' => $row['product_id'],
+                'accessories' => $row['accessories_name'],
+                'status' => $row['status_name'],
+                // ▼ 注文単位のキャンセル状況を商品行にも反映（UI変更なし）
+                'cancelled' => !empty($row['cancelled_at'])
+            ];
+        }
+    }
+    $orders = array_values($orders);
     $result_count = count($orders);
 
     $total_orders = $pdo->query("SELECT COUNT(*) FROM order_management")->fetchColumn();
@@ -134,13 +154,7 @@ try {
 
   <div class="column" style="padding: 2rem;">
     <h1 class="title is-4">注文管理／注文マスター</h1>
-    <h2 class="subtitle is-6">注文一覧</h2>
-
-    <h3 class="subtitle is-4 mb-3">総注文数：<?= number_format($total_orders) ?> 件</h3>
-
-    <?php if (isset($_GET['message']) && $_GET['message'] === 'deleted'): ?>
-        <div class="notification is-success">注文をキャンセルしました。</div>
-    <?php endif; ?>
+    <h3 class="subtitle is-5">総注文数：<?= number_format($total_orders) ?> 件</h3>
 
     <!-- ▼ 検索フォーム -->
     <form method="GET" class="mb-5">
@@ -205,53 +219,67 @@ try {
       </div>
     </form>
 
-    <?php if ($filter === 'cancelled' && $result_count === 0): ?>
-        <div class="notification is-warning">キャンセル済みの注文がありません。</div>
-    <?php elseif ($search_query !== '' && $result_count === 0): ?>
-        <div class="notification is-warning">該当する注文は見つかりませんでした。</div>
-    <?php elseif ($search_query !== '' && $result_count > 0): ?>
-        <h3 class="subtitle is-5 mt-5">検索結果：<?= $result_count ?>件の注文が見つかりました</h3>
-    <?php endif; ?>
-
-    <div class="columns is-multiline">
-      <?php if (!empty($orders)): ?>
+    <!-- ▼ 注文一覧 -->
+    <?php if ($result_count === 0): ?>
+        <div class="notification is-warning">該当する注文はありません。</div>
+    <?php else: ?>
         <?php foreach ($orders as $order): ?>
-          <div class="column is-one-third">
-            <div class="card">
-              <div class="card-content">
-
+            <div class="box">
                 <?php if (!empty($order['cancelled_at'])): ?>
-                  <p class="has-text-danger" style="font-weight:bold;">キャンセル済み</p>
+                    <p class="has-text-danger" style="font-weight:bold;">キャンセル済み</p>
                 <?php endif; ?>
 
-                <a href="K6-order_detail.php?id=<?= htmlspecialchars($order['order_management_id']); ?>">
-                  <p class="title is-6"><?= htmlspecialchars($order['product_name'] ?? '商品情報なし'); ?></p>
-                  <p class="subtitle is-7 has-text-danger">¥<?= number_format($order['price'] ?? 0); ?> 円</p>
-                  <p class="subtitle is-7">商品番号：<strong><?= htmlspecialchars($order['product_id'] ?? '―'); ?></strong></p>
-                  <p>付属品：<?= htmlspecialchars($order['accessories_name'] ?? '―'); ?></p>
-                  <p>状態：<?= htmlspecialchars($order['status_name'] ?? '―'); ?></p>
-                  <hr style="margin: 10px 0;">
-                  <p>入金状況：
+                <p>注文ID：<?= htmlspecialchars($order['order_management_id']); ?></p>
+                <p>氏名：<?= htmlspecialchars($order['customer_name']); ?> 様</p>
+                <p>入金状況：
                     <span class="<?= ($order['payment_confirmation'] === '入金済み') ? 'has-text-success' : 'has-text-danger'; ?>">
-                      <?= htmlspecialchars($order['payment_confirmation']); ?>
+                        <?= htmlspecialchars($order['payment_confirmation']); ?>
                     </span>
-                  </p>
-                  <p>メール送信状況：
+                </p>
+                <p>メール送信状況：
                     <span class="<?= ($order['email_sent'] == 1) ? 'has-text-success' : 'has-text-danger'; ?>">
-                      <?= ($order['email_sent'] == 1) ? '送信済み' : '未送信'; ?>
+                        <?= ($order['email_sent'] == 1) ? '送信済み' : '未送信'; ?>
                     </span>
-                  </p>
-                  <p>氏名：<?= htmlspecialchars($order['customer_name'] ?? '不明'); ?> 様</p>
-                  <p>注文日：<?= date('Y/m/d', strtotime($order['order_date'])); ?></p>
-                </a>
-              </div>
+                </p>
+                <p>注文日：<?= date('Y/m/d', strtotime($order['order_date'])); ?></p>
+
+                <?php if (!empty($order['products'])): ?>
+                    <table class="table is-fullwidth is-striped mt-3">
+                        <thead>
+                            <tr>
+                                <th>商品名</th>
+                                <th>価格</th>
+                                <th>商品番号</th>
+                                <th>付属品</th>
+                                <th>状態</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($order['products'] as $prod): ?>
+                                <tr>
+                                    <td>
+                                        <?= htmlspecialchars($prod['name']); ?>
+                                        <?php if ($prod['cancelled']): ?>
+                                            <br><span class="has-text-danger" style="font-weight:bold;">キャンセル済み</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>¥<?= number_format($prod['price'] ?? 0); ?></td>
+                                    <td><?= htmlspecialchars($prod['product_id'] ?? '―'); ?></td>
+                                    <td><?= htmlspecialchars($prod['accessories'] ?? '―'); ?></td>
+                                    <td><?= htmlspecialchars($prod['status'] ?? '―'); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else: ?>
+                    <p>商品情報なし</p>
+                <?php endif; ?>
+
+                <a href="K6-order_detail.php?id=<?= htmlspecialchars($order['order_management_id']); ?>" class="button is-link mt-3">詳細へ</a>
             </div>
-          </div>
         <?php endforeach; ?>
-      <?php else: ?>
-        <div class="notification is-warning">現在、登録されている注文情報はありません。</div>
-      <?php endif; ?>
-    </div>
+    <?php endif; ?>
+
   </div>
 </div>
 

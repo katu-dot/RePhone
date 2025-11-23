@@ -88,7 +88,9 @@ require 'header.php';
         <p><strong>電話番号：</strong> <?= htmlspecialchars($customer['phone']) ?></p>
         <p><strong>郵便番号：</strong> <?= htmlspecialchars($customer['postal_code']) ?></p>
         <p><strong>住所：</strong> <?= htmlspecialchars($customer['address']) ?></p>
+        <p><strong>番地：</strong> <?= htmlspecialchars($customer['street_address']) ?></p>
     </div>
+
 
     <div class="buttons mt-3">
         <a href="K3-customer_master.php" class="button is-light">顧客一覧へ戻る</a>

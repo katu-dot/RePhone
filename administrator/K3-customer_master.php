@@ -117,7 +117,10 @@ try {
                     <tr>
                         <td><?= htmlspecialchars($row['registration_date']) ?></td>
                         <td><?= htmlspecialchars($row['name']) ?></td>
-                        <td><?= htmlspecialchars($row['address']) ?></td>
+                        <td>
+                            <?= htmlspecialchars($row['address']) ?>
+                            <?= htmlspecialchars($row['street_address']) ?>
+                        </td>
                         <td>
                             <a href="K4-customer_detail.php?id=<?= htmlspecialchars($row['customer_management_id']) ?>" class="button is-small is-info">詳細</a>
                         </td>
