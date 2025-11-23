@@ -1,13 +1,12 @@
 <?php
-// --- ▼ デバッグ用 ▼ ---
+// --- デバッグ用 ---
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
-// --- ▲ デバッグ用 ▼ ---
-
 session_start();
+
 require '../config/db-connect.php';
 
-// --- ▼ DB接続 ▼ ---
+// --- DB接続 ---
 try {
     $pdo = new PDO($connect, USER, PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -15,24 +14,21 @@ try {
     die("<div class='notification is-danger'>DB接続エラー: " . htmlspecialchars($e->getMessage()) . "</div>");
 }
 
-// --- ▼ GET検証 ▼ ---
+// --- GET検証 ---
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     die("<div class='has-text-danger'>無効な注文IDです。</div>");
 }
 $order_id = intval($_GET['id']);
 
-// --- ▼ POST更新処理 ▼ ---
+// --- POST更新処理 ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // 顧客情報
-    $customer_name = $_POST['customer_name'];
-    $phone = $_POST['phone'];
-    $email = $_POST['email'];
-    $address = $_POST['address'];
-    $postal_code = $_POST['postal_code'];
-
-    // 注文情報
-    $product_management_id = intval($_POST['product_management_id']);
+    $customer_name = $_POST['customer_name'] ?? '';
+    $phone = $_POST['phone'] ?? '';
+    $email = $_POST['email'] ?? '';
+    $address = $_POST['address'] ?? '';
+    $street_address = $_POST['street_address'] ?? '';
+    $postal_code = $_POST['postal_code'] ?? '';
     $delivery_date = $_POST['delivery_date'] ?? null;
     $delivery_time = $_POST['delivery_time'] ?? null;
     $payment_confirmation = $_POST['payment_confirmation'] ?? '未入金';
@@ -48,6 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 phone = :phone,
                 email = :email,
                 address = :address,
+                street_address = :street_address,
                 postal_code = :postal_code
             WHERE customer_management_id = (
                 SELECT customer_management_id 
@@ -61,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':phone' => $phone,
             ':email' => $email,
             ':address' => $address,
+            ':street_address' => $street_address,
             ':postal_code' => $postal_code,
             ':order_id' => $order_id
         ]);
@@ -83,18 +81,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':order_id' => $order_id
         ]);
 
-        // --- 商品更新 ---
-        $sql2 = "
-            UPDATE order_detail_management
-            SET product_management_id = :product_management_id
-            WHERE order_management_id = :order_id
-        ";
-        $stmt2 = $pdo->prepare($sql2);
-        $stmt2->execute([
-            ':product_management_id' => $product_management_id,
-            ':order_id' => $order_id
-        ]);
-
         $pdo->commit();
 
         header("Location: K6-order_detail.php?id={$order_id}&updated=1");
@@ -106,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// --- ▼ 注文 + 顧客情報取得 ▼ ---
+// --- 注文情報取得 ---
 try {
     $sql = "
         SELECT 
@@ -115,15 +101,13 @@ try {
             OM.delivery_time,
             OM.payment_confirmation,
             OM.payment_method,
-            ODM.product_management_id,
             C.name,
             C.phone,
             C.email,
             C.address,
+            C.street_address,
             C.postal_code
         FROM order_management OM
-        LEFT JOIN order_detail_management ODM 
-            ON OM.order_management_id = ODM.order_management_id
         LEFT JOIN customer_management C
             ON OM.customer_management_id = C.customer_management_id
         WHERE OM.order_management_id = ?
@@ -141,29 +125,13 @@ try {
     die("<div class='notification is-danger'>取得エラー: " . htmlspecialchars($e->getMessage()) . "</div>");
 }
 
-// --- ▼ 商品一覧取得 ▼ ---
-$products = $pdo->query("
-    SELECT 
-        PM.product_management_id,
-        PM.stock,
-        P.product_name,
-        P.price,
-        S.shipping_date
-    FROM product_management PM
-    INNER JOIN product P ON PM.product_id = P.product_id
-    LEFT JOIN shipping S ON PM.shipping_id = S.shipping_id
-    ORDER BY P.product_name ASC
-")->fetchAll(PDO::FETCH_ASSOC);
-
 require './header.php';
 ?>
 
-<!-- ▼ 住所自動補完スクリプト（ZipCloud） -->
 <script>
 function fetchAddress() {
     const postal = document.getElementById("postal_code").value.replace(/[^0-9]/g, "");
     if (postal.length !== 7) return;
-
     fetch("https://zipcloud.ibsnet.co.jp/api/search?zipcode=" + postal)
         .then(res => res.json())
         .then(data => {
@@ -186,7 +154,6 @@ function fetchAddress() {
             <form method="post">
                 <table class="table is-fullwidth">
 
-                    <!-- 顧客情報（テキスト入力） -->
                     <tr>
                         <th>顧客名</th>
                         <td><input class="input" type="text" name="customer_name"
@@ -202,16 +169,14 @@ function fetchAddress() {
                     <tr>
                         <th>メールアドレス</th>
                         <td><input class="input" type="email" name="email"
-                                   value="<?= htmlspecialchars($order['email']) ?>" required></td>
+                                   value="<?= htmlspecialchars($order['email']) ?>"></td>
                     </tr>
 
                     <tr>
                         <th>郵便番号</th>
-                        <td>
-                            <input class="input" type="text" id="postal_code" name="postal_code"
+                        <td><input class="input" type="text" id="postal_code" name="postal_code"
                                    value="<?= htmlspecialchars($order['postal_code']) ?>"
-                                   onkeyup="fetchAddress()">
-                        </td>
+                                   onkeyup="fetchAddress()"></td>
                     </tr>
 
                     <tr>
@@ -220,43 +185,11 @@ function fetchAddress() {
                                    value="<?= htmlspecialchars($order['address']) ?>" required></td>
                     </tr>
 
-                    <!-- 商品選択 -->
                     <tr>
-                        <th>商品選択</th>
-                        <td>
-                            <div class="select is-fullwidth">
-                                <select name="product_management_id" required>
-                                    <option value="">選択してください</option>
-
-                                    <?php foreach ($products as $p): ?>
-                                        <?php 
-                                            $stock = (int)($p['stock'] ?? 0);
-                                            $price = number_format($p['price']);
-                                            $shipping = $p['shipping_date'] ?? '発送日未設定';
-
-                                            // ラベル整形
-                                            $label = htmlspecialchars($p['product_name']) .
-                                                    " ({$price}円) | {$shipping} | 在庫: {$stock}";
-
-                                            // 選択状態
-                                            $selected = ($p['product_management_id'] == $order['product_management_id']) ? 'selected' : '';
-
-                                            // 在庫0 → 選択不可 & 赤文字
-                                            $disabled = ($stock === 0) ? 'disabled style="color:red;"' : '';
-                                        ?>
-
-                                        <option value="<?= $p['product_management_id']; ?>" 
-                                                <?= $selected; ?>
-                                                <?= $disabled; ?>>
-                                            <?= $label; ?>
-                                        </option>
-
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                        </td>
+                        <th>番地</th>
+                        <td><input class="input" type="text" name="street_address"
+                                   value="<?= htmlspecialchars($order['street_address']) ?>" required></td>
                     </tr>
-
 
                     <tr>
                         <th>配達希望日</th>
@@ -270,8 +203,7 @@ function fetchAddress() {
                             <div class="select is-fullwidth">
                                 <select name="delivery_time">
                                     <option value="">指定なし</option>
-                                    <?php 
-                                    $times = ["08:00-10:00","11:00-13:00","14:00-16:00","17:00-19:00"];
+                                    <?php $times = ["08:00-10:00","11:00-13:00","14:00-16:00","17:00-19:00"];
                                     foreach ($times as $t): ?>
                                         <option value="<?= $t ?>" <?= $order['delivery_time']==$t?'selected':''; ?>>
                                             <?= $t ?>

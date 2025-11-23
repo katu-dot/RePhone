@@ -10,7 +10,7 @@
     <nav class="navbar is-light" role="navigation" aria-label="main navigation">
         <div class="container">
             <div class="navbar-brand">
-                <a class="navbar-item" href="index.html">
+                <a class="navbar-item" href="K2-home.php">
                     <img src="../img/admin-logo.png" alt="RePhone ロゴ" style="max-height: 35px;">
                 </a>
 
