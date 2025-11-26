@@ -155,7 +155,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     drive = :drive,
                     display = :display,
                     os = :os,
-                    shipping_id = :shipping_id
+                    shipping_id = :shipping_id,
+                    stock = :stock
                 WHERE product_id = :pid
             ";
             $stmt1 = $pdo->prepare($sql1);
@@ -173,6 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':display' => $display,
                 ':os' => $os,
                 ':shipping_id' => $shipping_id,
+                ':stock' => $stock,
                 ':pid' => $product['product_id']
             ]);
 
@@ -260,6 +262,7 @@ require 'header.php';
                     <td><input type="number" class="input" name="stock" value="<?= htmlspecialchars($product['stock']); ?>" min="0" required></td>
                 </tr>
 
+                
                 <!-- 発送予定日 -->
                 <tr>
                     <th>発送予定日</th>
