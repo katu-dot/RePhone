@@ -55,22 +55,30 @@ if (isset($_POST['admin_id']) && isset($_POST['password'])) {
       <input type="text" id="admin_id" name="admin_id" required><br>
 
       <label for="password">パスワード</label>
-      <div class="password-wrapper">
-        <input type="password" id="password" name="password" required>
-        <button type="button" id="togglePassword" class="toggle-password">👁</button>
-      </div>
+<div class="password-wrapper">
+    <input type="password" id="password" name="password" required>
+    <span id="togglePassword" class="toggle-password">
+        <img src="../img/icon_show_pwd.png" alt="パスワード表示切替" style="width: 20px;" id="toggleIcon">
+    </span>
+</div>
+
       <button type="submit">ログイン</button>
     </form>
   </div>
   <script>
-    const togglePassword = document.getElementById('togglePassword');
-    const passwordField = document.getElementById('password');
+  const togglePassword = document.getElementById('togglePassword');
+  const passwordField = document.getElementById('password');
+  const toggleIcon = document.getElementById('toggleIcon');
 
-    togglePassword.addEventListener('click', () => {
-      const type = passwordField.type === 'password' ? 'text' : 'password';
-      passwordField.type = type;
-      togglePassword.textContent = type === 'password' ? '👁' : '🙈';
-    });
-  </script>
+  togglePassword.addEventListener('click', () => {
+    const isPassword = passwordField.type === 'password';
+
+    passwordField.type = isPassword ? 'text' : 'password';
+
+    toggleIcon.src = isPassword
+      ? '../img/icon_hide_pwd.png'  // パスワードを“表示中” → 隠すアイコンに切り替え
+      : '../img/icon_show_pwd.png'; // パスワードを“非表示中” → 見せるアイコンに戻す
+  });
+</script>
 </body>
 </html>
