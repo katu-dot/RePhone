@@ -115,19 +115,21 @@ require './header.php';
 <?php endif; ?>
 
 <div class="columns" style="padding: 2rem;">
+    <!-- 左：商品画像 -->
     <div class="column is-one-third">
         <figure class="image is-4by3">
             <?php
             $imagePath = '../' . ltrim($product['image'], '/');
             if (!empty($product['image']) && file_exists($imagePath)) {
-                echo '<img src="' . htmlspecialchars($imagePath) . '" alt="' . htmlspecialchars($product['product_name']) . '" style="object-fit: contain;">';
+                echo '<img src="' . htmlspecialchars($imagePath) . '" alt="' . htmlspecialchars($product['product_name']) . '">';
             } else {
-                echo '<img src="../img/noimage.png" alt="画像なし" style="object-fit: contain;">';
+                echo '<img src="../img/noimage.png" alt="画像なし">';
             }
             ?>
         </figure>
     </div>
 
+    <!-- 右：商品基本情報 -->
     <div class="column is-two-thirds">
         <p class="title is-4"><?= htmlspecialchars($product['product_name']); ?></p>
         <p class="subtitle is-5 has-text-danger">¥<?= number_format($product['price']); ?> 円</p>
@@ -202,6 +204,7 @@ require './header.php';
     </div>
 </div>
 
+<!-- 下：詳細情報表 -->
 <div class="columns" style="padding: 0 2rem 2rem 2rem;">
     <div class="column">
         <table class="table is-fullwidth is-striped">
