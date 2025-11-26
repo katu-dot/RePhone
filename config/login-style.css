@@ -74,3 +74,35 @@ button {
 button:hover {
   background-color: #8f8fc7;
 }
+/* パスワード欄の外枠 */
+.password-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+/* パスワード入力欄 */
+.password-wrapper input {
+    width: 100%;
+    padding: 10px 40px 10px 10px; /* ← 右に40px余白（アイコンのスペース） */
+    border: none;
+    border-radius: 5px;
+    background-color: #ddd;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+/* 👁 アイコン */
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-15%);
+    cursor: pointer;
+    user-select: none;
+    font-size: 18px;
+    color: #666;
+}
+/* 👁 アイコンが下に落ちないようにする */
+.password-wrapper input {
+    margin-bottom: 0 !important;
+}
