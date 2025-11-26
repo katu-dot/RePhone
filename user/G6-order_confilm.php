@@ -1,6 +1,7 @@
 <?php
 session_start();
 require './header.php';
+require '../config/db-connect.php';
 
 // 入力画面を通らずに来た場合は戻す
 if (!isset($_SESSION['order'])) {
@@ -38,44 +39,55 @@ $delivery_time_label = [
 body {
     margin: 0;
     font-family: "Yu Gothic", sans-serif;
-    background: #fff;
+    background: #f6f6f6;
+}
+
+.header-title {
+    background: #ffffff;
+    padding: 15px;
+    font-size: 18px;
+    font-weight: bold;
     text-align: center;
+    border-bottom: 1px solid #ddd;
+    color: #000;
 }
 
 .container {
     width: 92%;
     max-width: 480px;
-    margin: 0 auto;
+    margin: 15px auto;
     padding-bottom: 120px;
 }
 
-/* 上部テキスト */
-.notice {
-    margin-top: 20px;
-    font-size: 14px;
-    color: #333;
-    font-weight: bold;
-    text-align: left;
-}
-
-/* データ表示ブロック */
+/* ボックス */
 .data-box {
-    text-align: left;
     background: #fff;
-    margin-top: 10px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    overflow: hidden;
 }
 
-.data-box p {
+/* 行デザイン */
+.row {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 12px;
     font-size: 15px;
-    margin: 15px 0;
-    border-bottom: 1px dashed #ddd;
-    padding-bottom: 6px;
+    border-bottom: 1px solid #eee;
+    background: #fafafa;
+    color: #000;
 }
 
-.data-box strong {
+.row:nth-child(even) {
+    background: #fff;
+}
+
+.row strong {
     font-weight: bold;
-    display: block;
-    margin-bottom: 3px;
+    color: #000;   /* ←追加 */
+}
+.row span {
+    color: #000;   /* ←追加 */
 }
 
 /* 下部固定ボタン */
@@ -87,6 +99,7 @@ body {
     background: #fff;
     padding: 15px 0;
     border-top: 1px solid #ddd;
+    text-align: center;
 }
 
 .btn-submit {
@@ -106,19 +119,19 @@ body {
 
 <body>
 
+<div class="header-title">入力内容に誤りがないか、ご確認ください</div>
+
 <div class="container">
 
-    <p class="notice">入力内容に誤りが無いか、ご確認ください。</p>
-
     <div class="data-box">
-        <p><strong>お名前</strong><?= htmlspecialchars($order['name'], ENT_QUOTES) ?></p>
-        <p><strong>メールアドレス</strong><?= htmlspecialchars($order['email'], ENT_QUOTES) ?></p>
-        <p><strong>電話番号</strong><?= htmlspecialchars($order['phone'], ENT_QUOTES) ?></p>
-        <p><strong>郵便番号</strong><?= htmlspecialchars($order['postal_code'], ENT_QUOTES) ?></p>
-        <p><strong>発送先住所</strong><?= htmlspecialchars($order['address'], ENT_QUOTES) ?></p>
-        <p><strong>配達希望日</strong><?= $delivery_date_label[$order['delivery_date']] ?></p>
-        <p><strong>配達希望時間</strong><?= $delivery_time_label[$order['delivery_time']] ?></p>
-        <p><strong>お支払方法</strong><?= htmlspecialchars($order['payment_method'], ENT_QUOTES) ?></p>
+        <div class="row"><strong>お名前</strong><span><?= htmlspecialchars($order['name'], ENT_QUOTES) ?></span></div>
+        <div class="row"><strong>メールアドレス</strong><span><?= htmlspecialchars($order['email'], ENT_QUOTES) ?></span></div>
+        <div class="row"><strong>電話番号</strong><span><?= htmlspecialchars($order['phone'], ENT_QUOTES) ?></span></div>
+        <div class="row"><strong>郵便番号</strong><span><?= htmlspecialchars($order['postal_code'], ENT_QUOTES) ?></span></div>
+        <div class="row"><strong>発送先住所</strong><span><?= htmlspecialchars($order['address'], ENT_QUOTES) ?></span></div>
+        <div class="row"><strong>配達希望日</strong><span><?= $delivery_date_label[$order['delivery_date']] ?></span></div>
+        <div class="row"><strong>配達希望時間</strong><span><?= $delivery_time_label[$order['delivery_time']] ?></span></div>
+        <div class="row"><strong>お支払方法</strong><span><?= htmlspecialchars($order['payment_method'], ENT_QUOTES) ?></span></div>
     </div>
 
 </div>

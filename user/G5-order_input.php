@@ -90,8 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <option value="コンビニ支払い">コンビニ支払い</option>
             <option value="代金引換">代金引換</option>
         </select>
-        <br><br>
-        <p><a href="G6-order_confilm.php" class="btn" >確認画面へ ▶</a></p>
+        <br>
+<p><a href="G6-order_confilm.php" class="btn">確認画面へ ▶</a></p>
         <br>
     </form>
 </div>
@@ -165,7 +165,7 @@ h2, h3, .title, .section-title {
 }
 
 .btn {
-    width: 30%;
+    width: 40%;
     padding: 10px;
     background: #8c88c3;
     color: #fff;
