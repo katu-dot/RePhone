@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email          = $_POST['email'] ?? '';
     $postal_code    = $_POST['postal_code'] ?? '';
     $address        = $_POST['address'] ?? '';
+    $street_address = $_POST['street_address'] ?? '';
 
     // 商品情報
     $product_management_id = intval($_POST['product_management_id']);
@@ -44,15 +45,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ▼ 新規顧客を customer_management に登録
         $stmt_cust = $pdo->prepare("
             INSERT INTO customer_management
-            (name, phone, email, postal_code, address)
-            VALUES (:name, :phone, :email, :postal_code, :address)
+            (name, phone, email, postal_code, address, street_address)
+            VALUES (:name, :phone, :email, :postal_code, :address, :street_address)
         ");
         $stmt_cust->execute([
             ':name'        => $name,
             ':phone'       => $phone,
             ':email'       => $email,
             ':postal_code' => $postal_code,
-            ':address'     => $address
+            ':address'     => $address,
+            ':street_address' => $street_address
         ]);
         $customer_management_id = $pdo->lastInsertId();
 
@@ -169,7 +171,7 @@ require './header.php';
 
 <tr>
     <th>メールアドレス</th>
-    <td><input class="input" type="email" name="email" placeholder="メールアドレスを入力" required></td>
+    <td><input class="input" type="email" name="email" placeholder="メールアドレスを入力"></td>
 </tr>
 
 <tr>
@@ -195,6 +197,19 @@ require './header.php';
             name="address"
             id="address"
             placeholder="住所を入力"
+            required
+        >
+    </td>
+</tr>
+
+<tr>
+    <th>番地</th>
+    <td>
+        <input 
+            class="input"
+            type="text"
+            name="street_address"
+            placeholder="番地を入力"
             required
         >
     </td>

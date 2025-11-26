@@ -14,7 +14,7 @@ try {
 
     $product_management_id = (int)$_GET['id'];
 
-    // 付属品も join して取得
+    // 付属品も join して取得 (元のSQLを維持)
     $sql = "
     SELECT 
         pm.product_management_id,
@@ -64,31 +64,61 @@ require 'header.php';
 ?>
 
 <div class="columns" style="padding: 2rem;">
-    <!-- 左：商品画像 -->
     <div class="column is-one-third">
         <figure class="image is-4by3">
             <?php
             $imagePath = '../' . ltrim($product['image'], '/');
             if (!empty($product['image']) && file_exists($imagePath)) {
-                echo '<img src="' . htmlspecialchars($imagePath) . '" alt="' . htmlspecialchars($product['product_name']) . '">';
+                echo '<img src="' . htmlspecialchars($imagePath) . '" alt="' . htmlspecialchars($product['product_name']) . '" style="object-fit: contain;">';
             } else {
-                echo '<img src="../img/noimage.png" alt="画像なし">';
+                echo '<img src="../img/noimage.png" alt="画像なし" style="object-fit: contain;">';
             }
             ?>
         </figure>
     </div>
 
-    <!-- 右：商品基本情報 -->
     <div class="column is-two-thirds">
         <p class="title is-4"><?= htmlspecialchars($product['product_name']); ?></p>
         <p class="subtitle is-5 has-text-danger">¥<?= number_format($product['price']); ?> 円</p>
         <p class="subtitle is-6">商品番号：<strong><?= htmlspecialchars($product['product_id']); ?></strong></p>
         <p class="mt-2">在庫数：<strong><?= htmlspecialchars($product['stock']); ?>個</strong></p>
         <p>発送日：<strong><?= htmlspecialchars($product['shipping_date'] ?? '―'); ?></strong></p>
-    </div>
+
+        <hr>
+        <form action="G4-cart.php" method="POST">
+            <input type="hidden" name="product_id" value="<?= htmlspecialchars($product['product_id']); ?>">
+            
+            <div class="field is-grouped">
+                <div class="control">
+                    <div class="select">
+                        <select name="quantity">
+                            <?php 
+                            $stock = $product['stock'];
+                            // 在庫がある場合、最大5個まで選択可能にする
+                            if ($stock > 0) {
+                                $max_qty = ($stock > 5) ? 5 : $stock;
+                                for ($i = 1; $i <= $max_qty; $i++) {
+                                    echo "<option value=\"{$i}\">{$i}</option>";
+                                }
+                            } else {
+                                echo "<option value=\"0\">0</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="control">
+                    <?php if ($stock > 0): ?>
+                        <button type="submit" class="button is-danger">カートに入れる</button>
+                    <?php else: ?>
+                        <button type="button" class="button is-dark" disabled>売り切れ</button>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </form>
+        </div>
 </div>
 
-<!-- 下：詳細情報表 -->
 <div class="columns" style="padding: 0 2rem 2rem 2rem;">
     <div class="column">
         <table class="table is-fullwidth is-striped">

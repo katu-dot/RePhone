@@ -26,11 +26,14 @@ try {
         $email = $_POST['email'] ?? '';
         $phone = $_POST['phone'] ?? '';
         $postal_code = $_POST['postal_code'] ?? '';
+        $street_address = $_POST['street_address'] ?? '';  // ★追加
         $address = $_POST['address'] ?? '';
 
         $stmt = $pdo->prepare("
             UPDATE customer_management 
-            SET name = :name, email = :email, phone = :phone, postal_code = :postal_code, address = :address
+            SET name = :name, email = :email, phone = :phone, postal_code = :postal_code,
+                street_address = :street_address,   /* ★追加 */
+                address = :address
             WHERE customer_management_id = :id
         ");
         $stmt->execute([
@@ -38,6 +41,7 @@ try {
             ':email' => $email,
             ':phone' => $phone,
             ':postal_code' => $postal_code,
+            ':street_address' => $street_address,  // ★追加
             ':address' => $address,
             ':id' => $customer_management_id
         ]);
@@ -72,7 +76,7 @@ require 'header.php';
         <div class="field">
             <label class="label">メールアドレス</label>
             <div class="control">
-                <input class="input" type="email" name="email" value="<?= htmlspecialchars($customer['email']) ?>" required>
+                <input class="input" type="email" name="email" value="<?= htmlspecialchars($customer['email']) ?>">
             </div>
         </div>
 
@@ -86,7 +90,6 @@ require 'header.php';
         <div class="field">
             <label class="label">郵便番号</label>
             <div class="control">
-                <!-- ▼ ここだけ追記（id と onkeyup） -->
                 <input class="input" type="text" id="postal_code" name="postal_code"
                        value="<?= htmlspecialchars($customer['postal_code']) ?>"
                        onkeyup="fetchAddress()">
@@ -96,9 +99,17 @@ require 'header.php';
         <div class="field">
             <label class="label">住所</label>
             <div class="control">
-                <!-- ▼ ここだけ追記（id を追加） -->
                 <input class="input" type="text" id="address" name="address"
                        value="<?= htmlspecialchars($customer['address']) ?>">
+            </div>
+        </div>
+
+        <!-- 番地 -->
+        <div class="field">
+            <label class="label">番地</label>
+            <div class="control">
+                <input class="input" type="text" name="street_address"
+                       value="<?= htmlspecialchars($customer['street_address']) ?>">
             </div>
         </div>
 
@@ -114,7 +125,6 @@ require 'header.php';
 </div>
 </div>
 
-<!-- ▼ 住所自動補完スクリプト（ZipCloud） -->
 <script>
 function fetchAddress() {
     const postal = document.getElementById("postal_code").value.replace(/[^0-9]/g, "");
