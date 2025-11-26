@@ -20,7 +20,7 @@ session_start();
     <div class="container">
         
         <div class="navbar-brand">
-            <a class="navbar-item" href="G1-top.php">
+            <a class="navbar-item" href="G1-top.html">
                 <img src="../img/user-logo.jpg" alt="RePhone ロゴ" style="max-height: 35px;">
             </a>
 
@@ -34,19 +34,12 @@ session_start();
         <div id="navbarMenu" class="navbar-menu">
             <div class="navbar-end">
                 
-                <a class="navbar-item" href="G4-cart.php" aria-label="カート">
+                <a class="navbar-item" href="cart.php" aria-label="カート">
                     <span class="icon-text">
                         <span class="icon is-medium">
                             <i class="fas fa-shopping-cart"></i>
                         </span>
-                        <?php 
-                            $cart_count = isset($_SESSION['cart']) ? count($_SESSION['cart']) : 0;
-                            if ($cart_count > 0): 
-                        ?>
-                            <span class="tag is-danger is-rounded" style="position:relative; top: -10px; left: -10px; font-size: 0.75rem; height: 1.5em; width: 1.5em; padding: 0;">
-                                <?php echo $cart_count; ?>
-                            </span>
-                        <?php endif; ?>
+                        <span class="tag is-danger is-rounded" style="position:relative; top: -10px; left: -10px; font-size: 0.75rem; height: 1.5em; width: 1.5em; padding: 0;">1</span>
                     </span>
                 </a>
 
