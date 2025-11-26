@@ -11,6 +11,26 @@ try {
     }
     $customer_management_id = (int)$_GET['id'];
 
+    // 顧客情報取得（user_idも取得）
+    $stmt = $pdo->prepare("
+        SELECT 
+            cm.*, u.user_id
+        FROM 
+            customer_management cm
+        LEFT JOIN 
+            user u ON cm.email = u.email
+        WHERE 
+            cm.customer_management_id = :id
+    ");
+    $stmt->bindValue(':id', $customer_management_id, PDO::PARAM_INT);
+    $stmt->execute();
+    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$customer) {
+        echo '<div class="notification is-warning">該当する顧客情報が見つかりません。</div>';
+        exit;
+    }
+
     // 削除処理
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
         try {
@@ -40,17 +60,6 @@ try {
         }
     }
 
-    // 顧客情報取得
-    $stmt = $pdo->prepare("SELECT * FROM customer_management WHERE customer_management_id = :id");
-    $stmt->bindValue(':id', $customer_management_id, PDO::PARAM_INT);
-    $stmt->execute();
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$customer) {
-        echo '<div class="notification is-warning">該当する顧客情報が見つかりません。</div>';
-        exit;
-    }
-
 } catch (PDOException $e) {
     echo '<div class="notification is-danger">接続エラー: ' . htmlspecialchars($e->getMessage()) . '</div>';
     exit;
@@ -58,6 +67,7 @@ try {
 
 require 'header.php';
 ?>
+
 <!-- 登録完了メッセージ -->
 <?php if (isset($_GET['message']) && $_GET['message'] === 'registered'): ?>
     <div class="notification is-success mt-3">
@@ -82,6 +92,8 @@ require 'header.php';
 
     <!-- 顧客情報表示 -->
     <div class="box">
+        <p><strong>顧客番号：</strong> <?= htmlspecialchars($customer['customer_management_id']) ?></p>
+        <p><strong>ログインID：</strong> <?= htmlspecialchars($customer['user_id'] ?? '未登録') ?></p>
         <p><strong>会員登録日：</strong> <?= htmlspecialchars($customer['registration_date']) ?></p>
         <p><strong>氏名：</strong> <?= htmlspecialchars($customer['name']) ?> 様</p>
         <p><strong>メールアドレス：</strong> <?= htmlspecialchars($customer['email']) ?></p>
@@ -90,7 +102,6 @@ require 'header.php';
         <p><strong>住所：</strong> <?= htmlspecialchars($customer['address']) ?></p>
         <p><strong>番地：</strong> <?= htmlspecialchars($customer['street_address']) ?></p>
     </div>
-
 
     <div class="buttons mt-3">
         <a href="K3-customer_master.php" class="button is-light">顧客一覧へ戻る</a>
@@ -101,13 +112,6 @@ require 'header.php';
             <button type="submit" name="delete" class="button is-danger">削除</button>
         </form>
     </div>
-
-    <!-- 編集完了メッセージ -->
-    <?php if (isset($_GET['message']) && $_GET['message'] === 'edited'): ?>
-        <div class="notification is-success mt-3">
-            顧客情報の編集が完了しました。
-        </div>
-    <?php endif; ?>
 </div>
 </div>
 
