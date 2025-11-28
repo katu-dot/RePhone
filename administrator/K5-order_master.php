@@ -37,7 +37,8 @@ try {
             S.status_name,
             PM.category_id,
             OM.cancelled_at,
-            OM.email_sent
+            OM.cancel_request_status,
+            OM.shipping_mail_sent
         FROM 
             order_management OM
         INNER JOIN 
@@ -74,21 +75,24 @@ try {
                 $sql .= " AND PM.category_id = 1";
                 break;
             case 'paid':
-                $sql .= " AND OM.payment_confirmation = '入金済み'";
+                $sql .= " AND OM.payment_status = '入金済み'";
                 break;
             case 'pending':
-                $sql .= " AND OM.payment_confirmation = '未入金'";
+                $sql .= " AND OM.payment_status = '未入金'";
                 break;
-            case 'email_sent':
-                $sql .= " AND OM.email_sent = 1";
+            case 'shipping_mail_sent':
+                $sql .= " AND OM.shipping_mail_sent = 1"; // 発送完了メール送信済み
                 break;
-            case 'email_pending':
-                $sql .= " AND OM.email_sent = 0";
+            case 'shipping_mail_pending':
+                $sql .= " AND OM.shipping_mail_sent = 0"; // 発送完了メール未送信
+                break;
+            case 'cancel_request':
+                $sql .= " AND OM.cancel_request_status = '申請中'"; // キャンセル申請あり
                 break;
         }
     }
 
-    // ▼ キャンセル済みのみ表示（注文全体のキャンセル）
+    // ▼ キャンセル済みのみ表示
     if ($filter === 'cancelled') {
         $sql .= " AND OM.cancelled_at IS NOT NULL";
     }
@@ -118,7 +122,7 @@ try {
     $stmt->execute($params);
     $raw_orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // ▼ 注文ごとに商品情報をまとめる
+    // ▼ 注文データ整形
     $orders = [];
     foreach ($raw_orders as $row) {
         $oid = $row['order_management_id'];
@@ -133,7 +137,6 @@ try {
                 'product_id' => $row['product_id'],
                 'accessories' => $row['accessories_name'],
                 'status' => $row['status_name'],
-                // ▼ 注文単位のキャンセル状況を商品行にも反映（UI変更なし）
                 'cancelled' => !empty($row['cancelled_at'])
             ];
         }
@@ -187,8 +190,9 @@ try {
               <option value="pc" <?= $category === 'pc' ? 'selected' : '' ?>>パソコン</option>
               <option value="paid" <?= $category === 'paid' ? 'selected' : '' ?>>入金済み</option>
               <option value="pending" <?= $category === 'pending' ? 'selected' : '' ?>>未入金</option>
-              <option value="email_sent" <?= $category === 'email_sent' ? 'selected' : '' ?>>メール送信済み</option>
-              <option value="email_pending" <?= $category === 'email_pending' ? 'selected' : '' ?>>メール未送信</option>
+              <option value="shipping_mail_sent" <?= $category === 'shipping_mail_sent' ? 'selected' : '' ?>>発送完了メール送信済み</option>
+              <option value="shipping_mail_pending" <?= $category === 'shipping_mail_pending' ? 'selected' : '' ?>>発送完了メール未送信</option>
+              <option value="cancel_request" <?= $category === 'cancel_request' ? 'selected' : '' ?>>キャンセル申請あり</option>
             </select>
           </div>
         </div>
@@ -225,20 +229,23 @@ try {
     <?php else: ?>
         <?php foreach ($orders as $order): ?>
             <div class="box">
+
                 <?php if (!empty($order['cancelled_at'])): ?>
                     <p class="has-text-danger" style="font-weight:bold;">キャンセル済み</p>
+                <?php elseif (!empty($order['cancel_request_status']) && $order['cancel_request_status'] === '申請中'): ?>
+                    <p class="has-text-danger" style="font-weight:bold;">※キャンセルの申請が来ています</p>
                 <?php endif; ?>
 
                 <p>注文ID：<?= htmlspecialchars($order['order_management_id']); ?></p>
                 <p>氏名：<?= htmlspecialchars($order['customer_name']); ?> 様</p>
                 <p>入金状況：
-                    <span class="<?= ($order['payment_confirmation'] === '入金済み') ? 'has-text-success' : 'has-text-danger'; ?>">
-                        <?= htmlspecialchars($order['payment_confirmation']); ?>
+                    <span class="<?= ($order['payment_status'] === '入金済み') ? 'has-text-success' : 'has-text-danger'; ?>">
+                        <?= htmlspecialchars($order['payment_status']); ?>
                     </span>
                 </p>
-                <p>メール送信状況：
-                    <span class="<?= ($order['email_sent'] == 1) ? 'has-text-success' : 'has-text-danger'; ?>">
-                        <?= ($order['email_sent'] == 1) ? '送信済み' : '未送信'; ?>
+                <p>発送完了メール送信状況：
+                    <span class="<?= ($order['shipping_mail_sent'] == 1) ? 'has-text-success' : 'has-text-danger'; ?>">
+                        <?= ($order['shipping_mail_sent'] == 1) ? '送信済み' : '未送信'; ?>
                     </span>
                 </p>
                 <p>注文日：<?= date('Y/m/d', strtotime($order['order_date'])); ?></p>

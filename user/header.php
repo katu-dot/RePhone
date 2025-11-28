@@ -36,7 +36,7 @@ if (isset($_GET['logout']) && $_GET['logout'] === '1') {
     <div class="container">
         
         <div class="navbar-brand">
-            <a class="navbar-item" href="G1-top.html">
+            <a class="navbar-item" href="G1-top.php">
                 <img src="../img/user-logo.jpg" alt="RePhone ロゴ" style="max-height: 35px;">
             </a>
 
