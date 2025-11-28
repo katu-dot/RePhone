@@ -83,8 +83,8 @@ foreach ($cart_items as $item) {
         <p>郵便番号：<?= htmlspecialchars($data['postal_code'] ?? '') ?></p>
         <p>住所：<?= htmlspecialchars($data['address'] ?? '') ?></p>
         <p>番地：<?= htmlspecialchars($data['street_address'] ?? '') ?></p>
-        <p>配達希望日：<?= htmlspecialchars($data['delivery_date'] ?? '指定なし') ?></p>
-        <p>配達希望時間：<?= htmlspecialchars($data['delivery_time'] ?? '指定なし') ?></p>
+        <p>配達希望日：<?= htmlspecialchars($data['delivery_date'] ?: '指定なし') ?></p>
+        <p>配達希望時間：<?= htmlspecialchars($data['delivery_time'] ?: '指定なし') ?></p>
 
         <hr>
 

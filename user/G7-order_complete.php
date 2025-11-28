@@ -4,7 +4,7 @@ error_reporting(E_ALL);
 ini_set('default_charset', 'UTF-8');
 
 require '../config/db-connect.php';
-require './header.php';
+require './header.php'; // session_start() は header 内で呼ばれている前提
 
 $data = $_POST;
 
@@ -52,24 +52,50 @@ $total_price += $shipping_fee;
 try {
     $pdo = new PDO($connect, USER, PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
     $pdo->beginTransaction();
 
-    // 顧客登録
-    $stmt = $pdo->prepare("
-        INSERT INTO customer_management
-        (name, email, phone, address, street_address, postal_code, registration_date)
-        VALUES (:name, :email, :phone, :address, :street_address, :postal_code, NOW())
-    ");
-    $stmt->execute([
-        ':name' => $data['name'],
-        ':email' => $data['email'],
-        ':phone' => $data['phone'],
-        ':address' => $data['address'],
-        ':street_address' => $data['street_address'],
-        ':postal_code' => $data['postal_code'],
-    ]);
-    $customer_management_id = $pdo->lastInsertId();
+    // ログイン済みユーザーなら既存 customer_management_id を取得
+    if (!empty($_SESSION['user_id'])) {
+        $stmt = $pdo->prepare("SELECT customer_management_id FROM customer_management WHERE user_id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $customer_management_id = $stmt->fetchColumn();
+
+        // 万が一未登録なら新規登録
+        if (!$customer_management_id) {
+            $stmt = $pdo->prepare("
+                INSERT INTO customer_management
+                (name, email, phone, address, street_address, postal_code, registration_date, user_id)
+                VALUES (:name, :email, :phone, :address, :street_address, :postal_code, NOW(), :user_id)
+            ");
+            $stmt->execute([
+                ':name' => $data['name'],
+                ':email' => $data['email'],
+                ':phone' => $data['phone'],
+                ':address' => $data['address'],
+                ':street_address' => $data['street_address'],
+                ':postal_code' => $data['postal_code'],
+                ':user_id' => $_SESSION['user_id']
+            ]);
+            $customer_management_id = $pdo->lastInsertId();
+        }
+
+    } else {
+        // 未ログインユーザーは従来どおり新規登録
+        $stmt = $pdo->prepare("
+            INSERT INTO customer_management
+            (name, email, phone, address, street_address, postal_code, registration_date)
+            VALUES (:name, :email, :phone, :address, :street_address, :postal_code, NOW())
+        ");
+        $stmt->execute([
+            ':name' => $data['name'],
+            ':email' => $data['email'],
+            ':phone' => $data['phone'],
+            ':address' => $data['address'],
+            ':street_address' => $data['street_address'],
+            ':postal_code' => $data['postal_code'],
+        ]);
+        $customer_management_id = $pdo->lastInsertId();
+    }
 
     // 注文管理登録
     $stmt = $pdo->prepare("
@@ -141,6 +167,8 @@ try {
         $body .= "住所：{$data['address']} {$data['street_address']}\r\n";
         $body .= "郵便番号：{$data['postal_code']}\r\n\r\n";
         $body .= "支払方法：{$data['payment_method']}\r\n";
+        $body .= "配達希望日：{$data['delivery_date']}\r\n";
+        $body .= "配達希望時間：{$data['delivery_time']}\r\n";
         $body .= "注文日時：" . date('Y/m/d H:i') . "\r\n\r\n";
         $body .= "またのご利用を心よりお待ちしております。\r\n";
         $body .= "-------------------------------------------------\r\n";
@@ -177,10 +205,11 @@ try {
         <p><strong>メール：</strong><?= htmlspecialchars($data['email']) ?></p>
         <p><strong>住所：</strong><?= htmlspecialchars($data['address'] . ' ' . $data['street_address']) ?></p>
         <p><strong>支払方法：</strong><?= htmlspecialchars($data['payment_method']) ?></p>
+        <p><strong>配達希望日：</strong><?= htmlspecialchars($data['delivery_date']) ?></p>
+        <p><strong>配達希望時間：</strong><?= htmlspecialchars($data['delivery_time']) ?></p>
         <p><strong>注文日：</strong><?= date('Y/m/d H:i') ?></p>
 
         <?php
-        // 支払い期限（コンビニ決済 or 銀行振込）
         $payment_deadline = '';
         if (in_array($data['payment_method'], ['コンビニ決済', '銀行振込'])) {
             $deadline = strtotime('+14 days');
@@ -208,6 +237,7 @@ try {
             <tbody>
                 <?php foreach ($order_products as $prod): ?>
                     <tr>
+                        <td><?= htmlspecialchars($prod['name']) ?></td>
                         <td><?= $prod['quantity'] ?></td>
                         <td>¥<?= number_format($prod['subtotal']) ?></td>
                         <td><?= htmlspecialchars($prod['product_id']) ?></td>

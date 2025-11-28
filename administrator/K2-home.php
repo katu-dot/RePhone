@@ -18,8 +18,8 @@ try {
 
     // 注文状況取得
     $stmt3 = $pdo->query("SELECT 
-        SUM(payment_confirmation = '入金済み') AS paid_count,
-        SUM(payment_confirmation = '未入金') AS unpaid_count
+        SUM(payment_status = '入金済み') AS paid_count,
+        SUM(payment_status = '未入金') AS unpaid_count
     FROM order_management");
     $order_counts = $stmt3->fetch(PDO::FETCH_ASSOC);
 
@@ -30,17 +30,26 @@ try {
     $stmt4 = $pdo->query("
         SELECT COUNT(*) AS pending_email_count
         FROM order_management
-        WHERE email_sent = 0
+        WHERE shipping_mail_sent = 0
         AND cancelled_at IS NULL
     ");
     $pending_email_count = $stmt4->fetch(PDO::FETCH_ASSOC)['pending_email_count'] ?? 0;
+
+    // キャンセル申請件数
+    $stmt5 = $pdo->query("
+        SELECT COUNT(*) AS cancel_request_count
+        FROM order_management
+        WHERE cancel_request_status = '申請中'
+        AND cancelled_at IS NULL
+    ");
+    $cancel_request_count = $stmt5->fetch(PDO::FETCH_ASSOC)['cancel_request_count'] ?? 0;
 
     /* ▼━━━━━━━━━━━━━━━━━━━━━━
        売上状況の取得（入金済みのみ）
        ━━━━━━━━━━━━━━━━━━━━━━━━ */
 
     // 今までの売上
-    $stmt5 = $pdo->query("
+    $stmt6 = $pdo->query("
     SELECT 
         COALESCE(SUM(P.price), 0) AS total_sales,
         COUNT(P.product_id) AS total_sales_items
@@ -51,16 +60,16 @@ try {
         ON ODM.product_management_id = PM.product_management_id
     LEFT JOIN product P
         ON PM.product_id = P.product_id
-    WHERE OM.payment_confirmation = '入金済み'
+    WHERE OM.payment_status = '入金済み'
     AND OM.cancelled_at IS NULL
     ");
-    $sales = $stmt5->fetch(PDO::FETCH_ASSOC);
+    $sales = $stmt6->fetch(PDO::FETCH_ASSOC);
 
     $total_sales       = $sales['total_sales'] ?? 0;
     $total_sales_items = $sales['total_sales_items'] ?? 0;
 
     // 今月の売上
-    $stmt6 = $pdo->query("
+    $stmt7 = $pdo->query("
     SELECT 
         COALESCE(SUM(P.price), 0) AS monthly_sales,
         COUNT(P.product_id) AS monthly_sales_items
@@ -71,18 +80,18 @@ try {
         ON ODM.product_management_id = PM.product_management_id
     LEFT JOIN product P
         ON PM.product_id = P.product_id
-    WHERE OM.payment_confirmation = '入金済み'
+    WHERE OM.payment_status = '入金済み'
     AND DATE_FORMAT(OM.order_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
     AND OM.cancelled_at IS NULL
     ");
 
-    $monthly = $stmt6->fetch(PDO::FETCH_ASSOC);
+    $monthly = $stmt7->fetch(PDO::FETCH_ASSOC);
 
     $monthly_sales       = $monthly['monthly_sales'] ?? 0;
     $monthly_sales_items = $monthly['monthly_sales_items'] ?? 0;
 
     // 今日の売上
-    $stmt7 = $pdo->query("
+    $stmt8 = $pdo->query("
     SELECT 
         COALESCE(SUM(P.price), 0) AS daily_sales,
         COUNT(P.product_id) AS daily_sales_items
@@ -93,12 +102,12 @@ try {
         ON ODM.product_management_id = PM.product_management_id
     LEFT JOIN product P
         ON PM.product_id = P.product_id
-    WHERE OM.payment_confirmation = '入金済み'
+    WHERE OM.payment_status = '入金済み'
     AND DATE(OM.order_date) = CURDATE()
     AND OM.cancelled_at IS NULL
     ");
 
-    $daily = $stmt7->fetch(PDO::FETCH_ASSOC);
+    $daily = $stmt8->fetch(PDO::FETCH_ASSOC);
 
     $daily_sales       = $daily['daily_sales'] ?? 0;
     $daily_sales_items = $daily['daily_sales_items'] ?? 0;
@@ -125,10 +134,10 @@ try {
             <!-- 新規受付（メール未送信） -->
             <div class="columns is-mobile" style="padding: 0.5rem 1rem; border-bottom: 1px solid #ddd;">
                 <div class="column is-6 has-text-weight-semibold">
-                    <a href="K5-order_master.php?category=email_pending" style="text-decoration:none; color:inherit;">注文新規受付</a>
+                    <a href="K5-order_master.php?category=shipping_mail_pending" style="text-decoration:none; color:inherit;">新規注文未発送</a>
                 </div>
                 <div class="column is-6 has-text-right">
-                    <a href="K5-order_master.php?category=email_pending" style="text-decoration:none; color:inherit;"><?= number_format($pending_email_count) ?> ＞</a>
+                    <a href="K5-order_master.php?category=shipping_mail_pending" style="text-decoration:none; color:inherit;"><?= number_format($pending_email_count) ?> ＞</a>
                 </div>
             </div>
 
@@ -143,7 +152,7 @@ try {
             </div>
 
             <!-- 未入金 -->
-            <div class="columns is-mobile" style="padding: 0.5rem 1rem;">
+            <div class="columns is-mobile" style="padding: 0.5rem 1rem; border-bottom: 1px solid #ddd;">
                 <div class="column is-6 has-text-weight-semibold">
                     <a href="K5-order_master.php?category=pending" style="text-decoration:none; color:inherit;">未入金</a>
                 </div>
@@ -151,6 +160,17 @@ try {
                     <a href="K5-order_master.php?category=pending" style="text-decoration:none; color:inherit;"><?= number_format($unpaid_count) ?> ＞</a>
                 </div>
             </div>
+
+            <!-- キャンセル申請 -->
+            <div class="columns is-mobile" style="padding: 0.5rem 1rem;">
+                <div class="column is-6 has-text-weight-semibold">
+                    <a href="K5-order_master.php?category=cancel_request" style="text-decoration:none; color:inherit;">キャンセル申請</a>
+                </div>
+                <div class="column is-6 has-text-right">
+                    <a href="K5-order_master.php?category=cancel_request" style="text-decoration:none; color:inherit;"><?= number_format($cancel_request_count) ?> ＞</a>
+                </div>
+            </div>
+
         </div>
 
         <!-- 売上状況 & ショップ状況 -->
