@@ -159,7 +159,7 @@ body {
         </div>
     <?php endif; ?>
 
-    <a href="login-user.php" class="bottom-link">ログインページへ</a>
+    <a href="L1-login.php" class="bottom-link">ログインページへ</a>
     <a href="G1-top.php" class="bottom-link">ホームに戻る</a>
 </div>
 
